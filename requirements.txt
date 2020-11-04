@@ -7,3 +7,4 @@ python-dotenv
 torch
 torchvision
 pytorch-lightning
+seml
