@@ -8,3 +8,5 @@ torch
 torchvision
 pytorch-lightning
 seml
+sacred
+autopep8
