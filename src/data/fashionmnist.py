@@ -2,10 +2,10 @@ import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
-from torchvision.datasets import MNIST
+from torchvision.datasets import FashionMNIST
 
 
-class MNISTDataModule(LightningDataModule):
+class FashionMNISTDataModule(LightningDataModule):
     def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, normalize: bool = False):
         super().__init__()
 
@@ -23,17 +23,17 @@ class MNISTDataModule(LightningDataModule):
 
     def prepare_data(self):
         # download only
-        MNIST(self.data_dir, train=True, download=True,
-              transform=self.transform)
-        MNIST(self.data_dir, train=False, download=True,
-              transform=self.transform)
+        FashionMNIST(self.data_dir, train=True, download=True,
+                     transform=self.transform)
+        FashionMNIST(self.data_dir, train=False, download=True,
+                     transform=self.transform)
 
     def setup(self):
         # transform
-        mnist_train = MNIST(self.data_dir, train=True,
-                            download=False, transform=self.transform)
-        mnist_test = MNIST(self.data_dir, train=False,
-                           download=False, transform=self.transform)
+        mnist_train = FashionMNIST(self.data_dir, train=True,
+                                   download=False, transform=self.transform)
+        mnist_test = FashionMNIST(self.data_dir, train=False,
+                                  download=False, transform=self.transform)
 
         # train/val split
         mnist_train, mnist_val = random_split(mnist_train, [55000, 5000])
