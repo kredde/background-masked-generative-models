@@ -1,7 +1,10 @@
-import logging
 from sacred import Experiment
 import numpy as np
 import seml
+
+"""
+    Example experiment
+"""
 
 
 ex = Experiment()
@@ -18,7 +21,8 @@ def config():
     overwrite = None
     db_collection = None
     if db_collection is not None:
-        ex.observers.append(seml.create_mongodb_observer(db_collection, overwrite=overwrite))
+        ex.observers.append(seml.create_mongodb_observer(
+            db_collection, overwrite=overwrite))
 
 
 @ex.automain

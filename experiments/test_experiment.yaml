@@ -1,5 +1,5 @@
 seml:
-  executable: src/main.py
+  executable: src/experiments/example-experiment.py
   name: example_experiment
   output_dir: slurm
   project_root_dir: ..
