@@ -24,6 +24,6 @@ vim run-docker.sh
 ./run-docker.sh
 ```
 
-![Persons](examples/person-examples.pdf)
-![Dogs](examples/dog-examples.pdf)
-![Clocks](examples/clock-examples.pdf)
+![Persons](src/data/oodcoco/examples/person-examples.pdf)
+![Dogs](src/data/oodcoco/examples/dog-examples.pdf)
+![Clocks](src/data/oodcoco/examples/clock-examples.pdf)
