@@ -23,7 +23,11 @@ make
 vim run-docker.sh
 ./run-docker.sh
 ```
-
+**PERSONS**
 ![Persons](src/data/oodcoco/examples/person-examples.png)
+
+**DOGS**
 ![Dogs](src/data/oodcoco/examples/dog-examples.png)
+
+**CLOCKS**
 ![Clocks](src/data/oodcoco/examples/clock-examples.png)
