@@ -3,10 +3,11 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import FashionMNIST
+import numpy as np
 
 
 class FashionMNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, normalize: bool = False):
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, bg_aug=False):
         super().__init__()
 
         self.batch_size = batch_size
@@ -15,18 +16,15 @@ class FashionMNISTDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.seed = seed
 
-        if normalize:
-            self.transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
-        else:
-            self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.ToTensor()])
 
     def prepare_data(self):
         # download only
         FashionMNIST(self.data_dir, train=True, download=True,
                      transform=self.transform)
         FashionMNIST(self.data_dir, train=False, download=True,
-                     transform=self.transform)
+                     transform=transforms.Compose(
+                         [transforms.ToTensor()]))
 
     def setup(self):
         # transform

@@ -26,10 +26,10 @@ class MaskedConv2d(nn.Conv2d):
 
 class PixelCNN(LightningModule):
 
-    def __init__(self, lr_rate: int = 1e-3):
+    def __init__(self, learning_rate: int = 1e-3):
         super().__init__()
 
-        self.lr_rate = lr_rate
+        self.learning_rate = learning_rate
 
         self.blocks = nn.Sequential(
             MaskedConv2d('A', 1,  64, 7, 1, 3, bias=False), nn.BatchNorm2d(
@@ -49,9 +49,6 @@ class PixelCNN(LightningModule):
             MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
             nn.Conv2d(64, 256, 1))
-
-    def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-3)
 
     def forward(self, x):
         return self.blocks(x)
@@ -107,7 +104,7 @@ class PixelCNN(LightningModule):
         return {'avg_test_loss': avg_loss, 'loss': [x['test_loss'] for x in outputs]}
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=self.lr_rate)
+        optimizer = Adam(self.parameters(), lr=self.learning_rate)
         lr_scheduler = {'scheduler': ExponentialLR(optimizer, gamma=0.95),
                         'name': 'expo_lr'}
         return [optimizer], [lr_scheduler]
