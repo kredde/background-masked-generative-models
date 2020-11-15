@@ -2,7 +2,7 @@ import numpy as np
 
 import pycocotools.coco
 
-from src.data.oodcoco.oodcoco import plot
+from src.data.oodcoco import plot
 
 
 def get_category_info(category_names, coco):

@@ -3,9 +3,9 @@ import logging
 import PIL.Image
 import pycocotools.coco
 
-from src.data.oodcoco.oodcoco import cocowrap
-from src.data.oodcoco.oodcoco import plot
-from src.data.oodcoco.oodcoco import transforms
+from src.data.oodcoco import cocowrap
+from src.data.oodcoco import plot
+from src.data.oodcoco import transforms
 
 logger = logging.getLogger(__name__)
 

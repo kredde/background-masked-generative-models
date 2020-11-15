@@ -1,10 +1,10 @@
 import logging
 import pathlib
 
-from src.data.oodcoco.oodcoco.id import generate_persons
-from src.data.oodcoco.oodcoco.ood import generate
+from src.data.oodcoco.id import generate_persons
+from src.data.oodcoco.ood import generate
 
-import src.data.oodcoco.oodcoco.cocowrap
+import src.data.oodcoco.cocowrap
 
 logger = logging.getLogger(__name__)
 
