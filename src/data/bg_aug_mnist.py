@@ -1,0 +1,106 @@
+import torch
+from torch.utils.data import random_split
+from torchvision import transforms
+from torchvision.datasets import MNIST, FashionMNIST
+from PIL import Image
+
+from src.utils.pixelcnn import randomize_background
+from src.data.mnist import MNISTDataModule
+from src.data.fashionmnist import FashionMNISTDataModule
+
+
+class MNISTBgAug(MNIST):
+    def __getitem__(self, index: int):
+
+        img, target = self.data[index], int(self.targets[index])
+
+        img = Image.fromarray(img.numpy(), mode='L')
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        img1 = torch.clone(img)
+        img2 = torch.clone(img)
+
+        img1 = randomize_background(img1, norm=1)
+        img2 = randomize_background(img2, norm=1)
+
+        return (img, img1, img2), target
+
+
+class FashionMNISTBgAug(FashionMNIST):
+
+    def __getitem__(self, index: int):
+
+        img, target = self.data[index], int(self.targets[index])
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img.numpy(), mode='L')
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        img1 = torch.clone(img)
+        img2 = torch.clone(img)
+
+        img1 = randomize_background(img1, norm=1)
+        img2 = randomize_background(img2, norm=1)
+
+        return img, img1, img2, target
+
+
+class BgAugMNISTDataModule(MNISTDataModule):
+    def prepare_data(self):
+        # download only
+        MNISTBgAug(self.data_dir, train=True, download=True,
+                   transform=self.transform)
+        MNISTBgAug(self.data_dir, train=False, download=True,
+                   transform=transforms.Compose(
+                       [transforms.ToTensor()]))
+
+    def setup(self):
+        # transform
+        mnist_train = MNISTBgAug(self.data_dir, train=True,
+                                 download=False, transform=self.transform)
+        mnist_test = MNISTBgAug(self.data_dir, train=False,
+                                download=False, transform=self.transform)
+
+        # train/val split
+        mnist_train, mnist_val = random_split(mnist_train, [55000, 5000])
+
+        # assign to use in dataloaders
+        self.train_dataset = mnist_train
+        self.val_dataset = mnist_val
+        self.test_dataset = mnist_test
+
+
+class BgAugFashionMNISTDataModule(FashionMNISTDataModule):
+    def prepare_data(self):
+        # download only
+        FashionMNISTBgAug(self.data_dir, train=True, download=True,
+                          transform=self.transform)
+        FashionMNISTBgAug(self.data_dir, train=False, download=True,
+                          transform=transforms.Compose(
+                              [transforms.ToTensor()]))
+
+    def setup(self):
+        # transform
+        mnist_train = FashionMNISTBgAug(self.data_dir, train=True,
+                                        download=False, transform=self.transform)
+        mnist_test = FashionMNISTBgAug(self.data_dir, train=False,
+                                       download=False, transform=self.transform)
+
+        # train/val split
+        mnist_train, mnist_val = random_split(mnist_train, [55000, 5000])
+
+        # assign to use in dataloaders
+        self.train_dataset = mnist_train
+        self.val_dataset = mnist_val
+        self.test_dataset = mnist_test
