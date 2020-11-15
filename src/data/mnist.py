@@ -4,9 +4,11 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 import numpy as np
+from src.utils.pixelcnn import randomize_background
+
 
 class MNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, normalize: bool = False):
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16):
         super().__init__()
 
         self.batch_size = batch_size
@@ -15,18 +17,15 @@ class MNISTDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.seed = seed
 
-        if normalize:
-            self.transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
-        else:
-            self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.ToTensor()])
 
     def prepare_data(self):
         # download only
         MNIST(self.data_dir, train=True, download=True,
               transform=self.transform)
         MNIST(self.data_dir, train=False, download=True,
-              transform=self.transform)
+              transform=transforms.Compose(
+                  [transforms.ToTensor()]))
 
     def setup(self):
         # transform
@@ -51,7 +50,7 @@ class MNISTDataModule(LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=1, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
-    
+
 
 class ConstantDataset(torch.utils.data.Dataset):
     def __init__(self, value=0, shape=(10000, 1, 28, 28)):
@@ -60,11 +59,11 @@ class ConstantDataset(torch.utils.data.Dataset):
         self.labels = np.zeros(shape[0])
 
     def __len__(self):
-        return len(self.values)  
+        return len(self.values)
 
     def __getitem__(self, index):
         return self.values[index], self.labels[index]
-    
+
 
 class RandomDataset(torch.utils.data.Dataset):
     def __init__(self, shape=(10000, 1, 28, 28)):
@@ -73,7 +72,7 @@ class RandomDataset(torch.utils.data.Dataset):
         self.labels = np.zeros(shape[0])
 
     def __len__(self):
-        return len(self.values)  
+        return len(self.values)
 
     def __getitem__(self, index):
         return self.values[index], self.labels[index]
