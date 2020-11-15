@@ -3,9 +3,9 @@ import logging
 import PIL.Image
 import pycocotools.coco
 
-import oodcoco.cocowrap
-import oodcoco.plot
-import oodcoco.transforms
+from src.data.oodcoco.oodcoco import cocowrap
+from src.data.oodcoco.oodcoco import plot
+from src.data.oodcoco.oodcoco import transforms
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def _filter_persons(image_path, annotations, min_size, rescale_size, keypoint_na
         if not _required_keypoints_visible(keypoints, keypoint_names):
             continue
 
-        result = oodcoco.transforms.filter_crops(image, anno, min_size, rescale_size)
+        result = transforms.filter_crops(image, anno, min_size, rescale_size)
 
         if result:
             cropped, cropped_original_bg = result
@@ -136,7 +136,7 @@ def generate_persons(parameters):
     """
 
     def _draw_keypoints(image_name, image_path, results_dir, annotations):
-        image_keypoints = oodcoco.plot.keypoints(image_path, annotations)
+        image_keypoints = plot.keypoints(image_path, annotations)
         image_keypoints.save(results_dir / str(image_name + '.png'))
 
     if parameters['draw-keypoints']:
@@ -147,7 +147,7 @@ def generate_persons(parameters):
     name = 'person'
     keypoint_names = get_keypoint_names(parameters)
 
-    num_crops = oodcoco.cocowrap.iter_images(name, parameters,
+    num_crops = cocowrap.iter_images(name, parameters,
                                              lambda *args: _filter_persons(*args, keypoint_names),
                                              kpfun)
 

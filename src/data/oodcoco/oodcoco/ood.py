@@ -2,8 +2,8 @@ import logging
 
 import PIL.Image
 
-import oodcoco.cocowrap
-import oodcoco.transforms
+from src.data.oodcoco.oodcoco import cocowrap
+from src.data.oodcoco.oodcoco import transforms
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def _filter_non_persons(image_path, annotations, min_size, rescale_size):
     image = PIL.Image.open(image_path)
 
     for i, anno in enumerate(annotations):
-        result = oodcoco.transforms.filter_crops(image, anno, min_size, rescale_size)
+        result = transforms.filter_crops(image, anno, min_size, rescale_size)
 
         if result:
             cropped, cropped_original_bg = result
@@ -51,5 +51,5 @@ def generate(parameters):
     """
 
     for name in parameters['names']:
-        num_crops = oodcoco.cocowrap.iter_images(name, parameters, _filter_non_persons)
+        num_crops = cocowrap.iter_images(name, parameters, _filter_non_persons)
         print(f"Saved {num_crops} for category {name}.")

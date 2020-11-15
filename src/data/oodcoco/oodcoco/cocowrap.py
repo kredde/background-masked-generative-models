@@ -2,7 +2,7 @@ import numpy as np
 
 import pycocotools.coco
 
-import oodcoco.plot
+from src.data.oodcoco.oodcoco import plot
 
 
 def get_category_info(category_names, coco):
@@ -81,6 +81,6 @@ def iter_images(category_name, parameters, _filter, image_callback=None):
                 plot_images.append(np.array(cropped_original_bg))
 
                 if len(plot_images) == 36:
-                    oodcoco.plot.grid(np.array(plot_images), 6, 6, results_dir / 'examples.pdf')
+                    plot.grid(np.array(plot_images), 6, 6, results_dir / 'examples.pdf')
 
     return num_crops
