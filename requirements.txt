@@ -10,3 +10,5 @@ pytorch-lightning
 seml
 sacred
 autopep8
+pycocotools
+scipy

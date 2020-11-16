@@ -1,11 +1,13 @@
 import pickle
-from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning import Trainer
 from pathlib import Path
+
+from pytorch_lightning import Trainer
+from pytorch_lightning.loggers import TensorBoardLogger
 
 
 class Experiment():
-    def __init__(self, experiment_name, model=None, dataset=None, callbacks=[], model_params={}, dataset_params={}, max_epochs=50):
+    def __init__(self, experiment_name, model=None, dataset=None, callbacks=[], model_params={}, dataset_params={},
+                 max_epochs=50, background_subtraction=False):
         """
             usage:
                 # setup a new experiment
@@ -26,6 +28,7 @@ class Experiment():
         self.experiment_name = experiment_name
         self.max_epochs = max_epochs
         self.callbacks = callbacks
+        self.background_subtraction = background_subtraction
 
     def _setup(self):
         """
@@ -89,4 +92,5 @@ class Experiment():
                 self._setup()
 
         self.model = self.model.load_from_checkpoint(
-            checkpoint_path='models/' + self.experiment_name + '.ckpt').cuda()
+            checkpoint_path='models/' + self.experiment_name + '.ckpt',
+            background_subtraction=self.background_subtraction).cuda()
