@@ -34,10 +34,11 @@ class Experiment():
         """
             sets up the model and dataset with the given params
         """
-        self.model = self.model_class(**self.model_params)  # .cuda()
+        self.model = self.model_class(**self.model_params).cuda()
         self.dataset = self.dataset_class(**self.dataset_params)
         self.dataset.prepare_data()
         self.dataset.setup()
+        self.trainer = Trainer(max_epochs=self.max_epochs, gpus=1, callbacks=self.callbacks, auto_lr_find=True)
 
     def setup_new(self):
         """
@@ -48,7 +49,7 @@ class Experiment():
         self.logger = TensorBoardLogger(
             'lightning_logs', name=self.experiment_name)
 
-        self.trainer = Trainer(max_epochs=self.max_epochs,  # gpus=1,
+        self.trainer = Trainer(max_epochs=self.max_epochs, gpus=1,
                                logger=self.logger, callbacks=self.callbacks, auto_lr_find=True)
 
     def train(self):
@@ -86,11 +87,15 @@ class Experiment():
                 self.dataset_params = config['dataset']
                 self.model_params = config['model']
                 self.max_epochs = config['max_epochs']
-                self.model_class = config['model_class']
+                self.model_class = config['model_class'] if 'model_class' in config.keys() else self.model_class
                 self.dataset_class = config['dataset_class']
                 self.callbacks = config['callbacks']
                 self._setup()
-
-        self.model = self.model.load_from_checkpoint(
-            checkpoint_path='models/' + self.experiment_name + '.ckpt',
-            background_subtraction=self.background_subtraction).cuda()
+        
+        filename = self.experiment_name + '.ckpt'
+        if (path / filename).is_file():
+            model_path = str(path / filename)
+        else:
+            model_path = str('models/' + self.experiment_name + '.ckpt')
+            
+        self.model = self.model.load_from_checkpoint(checkpoint_path=model_path, **self.model_params).cuda()

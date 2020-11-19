@@ -9,6 +9,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 from torch.autograd import Variable
 import torch
 
+
 class MaskedConv2d(nn.Conv2d):
     def __init__(self, mask_type, *args, **kwargs):
         super(MaskedConv2d, self).__init__(*args, **kwargs)
@@ -26,11 +27,12 @@ class MaskedConv2d(nn.Conv2d):
 
 class PixelCNN(LightningModule):
 
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False):
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0):
         super().__init__()
-
         self.learning_rate = learning_rate
         self.background_subtraction = background_subtraction
+        self.background_subtraction_value = background_subtraction_value
+
         self.blocks = nn.Sequential(
             MaskedConv2d('A', 1,  64, 7, 1, 3, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
@@ -64,8 +66,9 @@ class PixelCNN(LightningModule):
         target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
-        if self.background_subtraction: # Set all likelihood values of background pixels to zero
-            logits, target = self.subtract_background_likelihood(logits, target)
+        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
+            logits, target = self.subtract_background_likelihood(
+                logits, target)
 
         loss = self.cross_entropy_loss(logits, target)
 
@@ -78,8 +81,9 @@ class PixelCNN(LightningModule):
         target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
-        if self.background_subtraction: # Set all likelihood values of background pixels to zero
-            logits, target = self.subtract_background_likelihood(logits, target)
+        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
+            logits, target = self.subtract_background_likelihood(
+                logits, target)
 
         loss = self.cross_entropy_loss(logits, target)
 
@@ -92,8 +96,9 @@ class PixelCNN(LightningModule):
         target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
-        if self.background_subtraction: # Set all likelihood values of background pixels to zero
-            logits, target = self.subtract_background_likelihood(logits, target)
+        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
+            logits, target = self.subtract_background_likelihood(
+                logits, target)
 
         loss = self.cross_entropy_loss(logits, target)
 
@@ -121,11 +126,12 @@ class PixelCNN(LightningModule):
     def subtract_background_likelihood(self, logits, target):
         l = logits.clone()
         logit_shape = list(l.shape)
-        logit_shape[1] = 1 # assign number of channels to 1
+        logit_shape[1] = 1  # assign number of channels to 1
 
         mask = torch.reshape(torch.clone(target), tuple(logit_shape))
         mask[mask > 0] = 1
-        mask = mask.repeat(1, 256, 1, 1) # this should not be static
+        mask[mask == 0] = self.background_subtraction_value
+        mask = mask.repeat(1, 256, 1, 1)  # this should not be static
 
         l = l * mask
         return l, target
