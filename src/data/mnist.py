@@ -4,7 +4,6 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 import numpy as np
-from src.utils.pixelcnn import randomize_background
 
 
 class MNISTDataModule(LightningDataModule):

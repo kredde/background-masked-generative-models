@@ -27,8 +27,8 @@ class MaskedConv2d(nn.Conv2d):
 
 class PixelCNN(LightningModule):
 
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0):
-        super().__init__()
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, *args, **kwargs):
+        super(PixelCNN, self).__init__(*args, **kwargs)
         self.learning_rate = learning_rate
         self.background_subtraction = background_subtraction
         self.background_subtraction_value = background_subtraction_value

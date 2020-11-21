@@ -5,9 +5,8 @@ from torchvision import transforms
 from torchvision.datasets import FashionMNIST
 import numpy as np
 
-
 class FashionMNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, bg_aug=False):
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16):
         super().__init__()
 
         self.batch_size = batch_size
@@ -25,7 +24,7 @@ class FashionMNISTDataModule(LightningDataModule):
         FashionMNIST(self.data_dir, train=False, download=True,
                      transform=transforms.Compose(
                          [transforms.ToTensor()]))
-
+    
     def setup(self):
         # transform
         mnist_train = FashionMNIST(self.data_dir, train=True,
