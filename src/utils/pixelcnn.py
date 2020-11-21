@@ -3,7 +3,6 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
 import seaborn as sns
 
 
@@ -54,15 +53,13 @@ def likelihood(img_data, model):
 def draw_likelihood_plot(data, model):
     columns = 3
     rows = 3
-    w = 10
-    h = 10
     fig = plt.figure(figsize=(8, 8))
     i = 1
     for img in iter(data):
         if i <= 9:
             fig.add_subplot(rows, columns, i)
             like = likelihood(img, model)
-            sns.heatmap(like.detach().cpu().numpy(), cmap="gray")
+            sns.heatmap(like.detach().cpu().numpy(), cmap="gray", vmax=0.1)
             plt.xticks([])
             plt.yticks([])
         i += 1
