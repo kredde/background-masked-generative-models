@@ -3,6 +3,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import transforms, datasets
 import numpy as np
+from PIL import Image
 from math import floor
 import sys
 
@@ -18,7 +19,8 @@ class ConcatDataset(Dataset):
 
 class COCODataModule(LightningDataModule):
     
-    def __init__(self, batch_size: int = 64, foreground_data_dir: str = "./data/COCO/foreground_images/", background_data_dir: str = "./data/COCO/background_images/",seed: int = 42, num_workers: int = 8, normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8):
+    def __init__(self, batch_size: int = 64, foreground_data_dir: str = "./data/COCO/foreground_images/", background_data_dir: str = "./data/COCO/background_images/",seed: int = 42, num_workers: int = 8, 
+    normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8):
         
         super().__init__()
         
@@ -31,7 +33,7 @@ class COCODataModule(LightningDataModule):
         self.num_workers = num_workers
         self.seed = seed
         
-        self.transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.ToTensor()]) if convert_grayscale else transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()]) if convert_grayscale else transforms.Compose([transforms.ToTensor()])
 
         
     def prepare_data(self):  
