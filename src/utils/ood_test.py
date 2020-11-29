@@ -20,9 +20,8 @@ def test_ood(exp, idd, odd):
                                   idd_test], verbose=False)
     odd_result = exp.trainer.test(exp.model, test_dataloaders=[
                                   odd_test], verbose=False)
-
-    idd_results = torch.Tensor(idd_result[1]['loss']).numpy()
-    odd_results = torch.Tensor(odd_result[1]['loss']).numpy()
+    idd_results = torch.Tensor(list(map(lambda x: x['test_loss'], idd_result))).numpy()
+    odd_results = torch.Tensor(list(map(lambda x: x['test_loss'], odd_result))).numpy()
 
     targets = np.concatenate(
         (np.zeros(len(idd_results)), np.ones(len(odd_results))))
