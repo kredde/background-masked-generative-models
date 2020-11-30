@@ -5,7 +5,6 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.autograd import Variable
 import torch
-from src.models.vae.utils import kl_loss_function, sample
 from src.models.pixelcnn import PixelCNN
 
 
@@ -35,7 +34,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, out_dim: int = 1):
         super(Decoder, self).__init__()
 
         upmode = 'bilinear'
@@ -54,7 +53,7 @@ class Decoder(nn.Module):
             nn.ConvTranspose1d(16, 16, kernel_size=(3, 3), padding=1),
             nn.ReLU(),
             nn.Upsample(scale_factor=scale, mode=upmode),
-            nn.ConvTranspose1d(16, 1, kernel_size=(3, 3), padding=1),
+            nn.ConvTranspose1d(16, out_dim, kernel_size=(3, 3), padding=1),
             torch.nn.Sigmoid()
         ]
 
