@@ -33,7 +33,7 @@ class COCODataModule(LightningDataModule):
         self.num_workers = num_workers
         self.seed = seed
         
-        self.transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()]) if convert_grayscale else transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()]) if convert_grayscale else transforms.Compose([transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()])
 
         
     def prepare_data(self):  

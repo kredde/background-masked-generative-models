@@ -6,6 +6,7 @@ import numpy as np
 import seaborn as sns
 
 
+#TODO: number of channels and image sizes should be parametric
 def generate_images(model):
     sample = torch.Tensor(144, 1, 28, 28).cuda()
 
