@@ -27,33 +27,58 @@ class MaskedConv2d(nn.Conv2d):
 
 class PixelCNN(LightningModule):
 
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, *args, **kwargs):
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, foreground_addition_value: float = 0.0, kernel_size: int = 7, padding: int = 3, in_channels: int = 1, position_encode: bool = False, mse: bool = False, fg_mse: bool = False, *args, **kwargs):
         super(PixelCNN, self).__init__(*args, **kwargs)
         self.learning_rate = learning_rate
         self.background_subtraction = background_subtraction
         self.background_subtraction_value = background_subtraction_value
+        self.foreground_addition_value = foreground_addition_value
+        self.position_encode = position_encode
+        self.in_channels = in_channels
+        self.mse = mse
+        self.fg_mse = fg_mse
 
         self.blocks = nn.Sequential(
-            MaskedConv2d('A', 1,  64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('A', in_channels,  64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), nn.BatchNorm2d(
+            MaskedConv2d('B', 64, 64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
                 64), nn.ReLU(True),
             nn.Conv2d(64, 256, 1))
 
     def forward(self, x):
         return self.blocks(x)
+
+    def _step(self, batch, batch_idx):
+        x, y = batch
+
+        input = Variable(x.cuda())
+        if self.position_encode:
+            input = self.positional_encoding(input)
+        target = Variable((x.data[:, 0] * 8).long())
+        logits = self.forward(input)
+
+        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
+            logits, target = self.subtract_background_likelihood(
+                logits, target)
+        loss = self.cross_entropy_loss(logits, target)
+
+        if self.mse:
+            mse = self.compute_mse(logits, target, masked=self.fg_mse)
+            loss += mse
+
+        return loss
 
     def cross_entropy_loss(self, logits, targets):
         targets = targets.squeeze(1).long()
@@ -61,61 +86,22 @@ class PixelCNN(LightningModule):
         return F.cross_entropy(logits, targets)
 
     def training_step(self, train_batch, batch_idx):
-        x, y = train_batch
-        input = Variable(x.cuda())
-        target = Variable((x.data[:, 0] * 255).long())
-        logits = self.forward(input)
-
-        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
-            logits, target = self.subtract_background_likelihood(
-                logits, target)
-
-        loss = self.cross_entropy_loss(logits, target)
+        loss = self._step(train_batch, batch_idx)
 
         self.log('train_loss', loss)
-        return {'loss': loss}
+        return loss
 
     def validation_step(self, val_batch, batch_idx):
-        x, y = val_batch
-        input = Variable(x.cuda())
-        target = Variable((x.data[:, 0] * 255).long())
-        logits = self.forward(input)
-
-        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
-            logits, target = self.subtract_background_likelihood(
-                logits, target)
-
-        loss = self.cross_entropy_loss(logits, target)
+        loss = self._step(val_batch, batch_idx)
 
         self.log('val_loss', loss)
-        return {'val_loss': loss}
+        return loss
 
     def test_step(self, val_batch, batch_idx):
-        x, y = val_batch
-        input = Variable(x.cuda())
-        target = Variable((x.data[:, 0] * 255).long())
-        logits = self.forward(input)
-
-        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
-            logits, target = self.subtract_background_likelihood(
-                logits, target)
-
-        loss = self.cross_entropy_loss(logits, target)
+        loss = self._step(val_batch, batch_idx)
 
         self.log('test_loss', loss)
         return {'test_loss': loss}
-
-    def validation_epoch_end(self, outputs):
-        avg_loss = stack([x['val_loss'] for x in outputs]).mean()
-        self.log('avg_val_loss', avg_loss)
-
-        return {'avg_val_loss': avg_loss}
-
-    def test_epoch_end(self, outputs):
-        avg_loss = stack([x['test_loss'] for x in outputs]).mean()
-
-        self.log('avg_test_loss', avg_loss)
-        return {'avg_test_loss': avg_loss, 'loss': [x['test_loss'] for x in outputs]}
 
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=self.learning_rate)
@@ -129,9 +115,33 @@ class PixelCNN(LightningModule):
         logit_shape[1] = 1  # assign number of channels to 1
 
         mask = torch.reshape(torch.clone(target), tuple(logit_shape))
-        mask[mask > 0] = 1
+        mask = mask.type(torch.FloatTensor)
+        mask[mask > 0] = 1 + self.foreground_addition_value
         mask[mask == 0] = self.background_subtraction_value
         mask = mask.repeat(1, 256, 1, 1)  # this should not be static
 
-        l = l * mask
+        l = l * mask.cuda()
         return l, target
+
+    def compute_mse(self, logits, target, masked=False):
+        values = logits.max(1).indices
+        if masked:
+            mask = target.clone()
+            mask[mask > 0] = 1
+            values = values * mask
+
+        values = values.type(torch.FloatTensor) / 255
+        target = target.type(torch.FloatTensor) / 255
+
+        return F.mse_loss(values, target)
+
+    def positional_encoding(self, batch):
+        encode_line = torch.Tensor(
+            list(range(1, batch.shape[2] + 1))).repeat(batch.shape[2], 1).cuda()
+        encode_x = encode_line.repeat(batch.shape[0], 1, 1, 1).cuda()
+        encode_y = torch.transpose(encode_line, 0, 1).repeat(
+            batch.shape[0], 1, 1, 1).cuda()
+        encoded = torch.cat((batch, encode_x, encode_y)).view(
+            batch.shape[0], 3, *batch.shape[2:4])
+
+        return encoded

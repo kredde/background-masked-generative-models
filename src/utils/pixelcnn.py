@@ -6,8 +6,8 @@ import numpy as np
 import seaborn as sns
 
 
-def generate_images(model):
-    sample = torch.Tensor(144, 1, 28, 28).cuda()
+def generate_images(model, channels=1):
+    sample = torch.Tensor(144, channels, 28, 28).cuda()
 
     model.cuda()
     sample.fill_(0)
@@ -37,29 +37,32 @@ def randomize_background(img, norm=0.5):
 
 
 def likelihood(img_data, model):
-    img = img_data[0]
+    img = img_data[0].cuda()
+    if hasattr(model, 'position_encode') and model.position_encode:
+        img = model.positional_encoding(img)
     img = img.cuda()
     model.eval()
     res = model(img)
     like = torch.zeros((28, 28))
     for i in range(28):
         for j in range(28):
-            probs = F.softmax(res[0, :, 1, 1], dim=0)
+            probs = F.softmax(res[0, :, i, j], dim=0)
             prob = (img[0, :, i, j] * 255.).int().cpu().numpy()[0]
             like[i][j] = probs[prob]
+
     return like
 
 
 def draw_likelihood_plot(data, model):
-    columns = 3
-    rows = 3
+    columns = 4
+    rows = 4
     fig = plt.figure(figsize=(8, 8))
     i = 1
     for img in iter(data):
-        if i <= 9:
+        if i <= 16:
             fig.add_subplot(rows, columns, i)
             like = likelihood(img, model)
-            sns.heatmap(like.detach().cpu().numpy(), cmap="gray", vmax=0.1)
+            sns.heatmap(like.detach().cpu().numpy(), cmap="gray", vmax=.1)
             plt.xticks([])
             plt.yticks([])
         i += 1
