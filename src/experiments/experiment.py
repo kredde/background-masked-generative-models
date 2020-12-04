@@ -7,7 +7,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 class Experiment():
     def __init__(self, experiment_name, model=None, dataset=None, callbacks=[], model_params={}, dataset_params={},
-                 max_epochs=50, background_subtraction=False):
+                 max_epochs=500, background_subtraction=False):
         """
             usage:
                 # setup a new experiment
@@ -38,7 +38,8 @@ class Experiment():
         self.dataset = self.dataset_class(**self.dataset_params)
         self.dataset.prepare_data()
         self.dataset.setup()
-        self.trainer = Trainer(max_epochs=self.max_epochs, gpus=1, callbacks=self.callbacks, auto_lr_find=True)
+        self.trainer = Trainer(max_epochs=self.max_epochs,
+                               gpus=1, callbacks=self.callbacks, auto_lr_find=True)
 
     def setup_new(self):
         """
@@ -87,15 +88,17 @@ class Experiment():
                 self.dataset_params = config['dataset']
                 self.model_params = config['model']
                 self.max_epochs = config['max_epochs']
-                self.model_class = config['model_class'] if 'model_class' in config.keys() else self.model_class
+                self.model_class = config['model_class'] if 'model_class' in config.keys(
+                ) else self.model_class
                 self.dataset_class = config['dataset_class']
                 self.callbacks = config['callbacks']
                 self._setup()
-        
+
         filename = self.experiment_name + '.ckpt'
         if (path / filename).is_file():
             model_path = str(path / filename)
         else:
             model_path = str('models/' + self.experiment_name + '.ckpt')
-            
-        self.model = self.model.load_from_checkpoint(checkpoint_path=model_path, **self.model_params).cuda()
+
+        self.model = self.model.load_from_checkpoint(
+            checkpoint_path=model_path, **self.model_params).cuda()

@@ -4,9 +4,11 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import math
+import torch
 
 
-def generate_images(model, channels=1, img_dim=(28,28)):
+def generate_images(model, channels=1, img_dim=(28, 28)):
     sample = torch.Tensor(64, channels, *img_dim).cuda()
 
     model.cuda()
@@ -54,22 +56,52 @@ def likelihood(img_data, model):
     return like
 
 
-def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=(4,4)):
+def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=(4, 4)):
     columns, rows = dim
     fig = plt.figure(figsize=(16, 16))
     i = 1
     for img in iter(data):
         if i <= (columns * rows) * 2:
             fig.add_subplot(rows * 2, columns * 2, i)
-            like = likelihood(img if img_index == None else img[img_index], model)
+            like = likelihood(img if img_index ==
+                              None else img[img_index], model)
             sns.heatmap(like.detach().cpu().numpy(), cmap=cmap, vmax=vmax)
             plt.xticks([])
             plt.yticks([])
-            
-            fig.add_subplot(rows * 2, columns* 2, i + 1)
-            plt.imshow((img if img_index == None else img[img_index])[0][0][0], cmap="gray")
+
+            fig.add_subplot(rows * 2, columns * 2, i + 1)
+            plt.imshow((img if img_index == None else img[img_index])[
+                       0][0][0], cmap="gray")
             plt.xticks([])
             plt.yticks([])
         i += 2
     plt.show()
 
+
+def positionalencoding2d(d_model, height, width):
+    """
+    :param d_model: dimension of the model
+    :param height: height of the positions
+    :param width: width of the positions
+    :return: d_model*height*width position matrix
+    """
+    if d_model % 4 != 0:
+        raise ValueError("Cannot use sin/cos positional encoding with "
+                         "odd dimension (got dim={:d})".format(d_model))
+    pe = torch.zeros(d_model, height, width)
+    # Each dimension use half of d_model
+    d_model = int(d_model / 2)
+    div_term = torch.exp(torch.arange(0., d_model, 2) *
+                         -(math.log(10000.0) / d_model))
+    pos_w = torch.arange(0., width).unsqueeze(1)
+    pos_h = torch.arange(0., height).unsqueeze(1)
+    pe[0:d_model:2, :, :] = torch.sin(
+        pos_w * div_term).transpose(0, 1).unsqueeze(1).repeat(1, height, 1)
+    pe[1:d_model:2, :, :] = torch.cos(
+        pos_w * div_term).transpose(0, 1).unsqueeze(1).repeat(1, height, 1)
+    pe[d_model::2, :, :] = torch.sin(
+        pos_h * div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, width)
+    pe[d_model + 1::2, :,
+        :] = torch.cos(pos_h * div_term).transpose(0, 1).unsqueeze(2).repeat(1, 1, width)
+
+    return pe.cuda()
