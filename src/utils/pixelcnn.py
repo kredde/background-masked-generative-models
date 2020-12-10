@@ -6,24 +6,24 @@ import numpy as np
 import seaborn as sns
 
 
-def generate_images(model, channels=1):
-    sample = torch.Tensor(144, channels, 28, 28).cuda()
+def generate_images(model, channels=1, img_dim=(28,28)):
+    sample = torch.Tensor(64, channels, *img_dim).cuda()
 
     model.cuda()
     sample.fill_(0)
     model.train(False)
-    for i in range(28):
-        for j in range(28):
+    for i in range(img_dim[0]):
+        for j in range(img_dim[1]):
             out = model(Variable(sample))
             probs = F.softmax(out[:, :, i, j]).data
             sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
 
     fig = plt.figure(figsize=(8, 8))
 
-    columns = 12
-    rows = 12
+    columns = 8
+    rows = 8
     for i in range(1, columns*rows + 1):
-        if i < 144:
+        if i < 64:
             fig.add_subplot(rows, columns, i)
             plt.imshow(sample.detach().cpu().numpy()[i][0], cmap='gray')
             plt.xticks([])
@@ -43,9 +43,10 @@ def likelihood(img_data, model):
     img = img.cuda()
     model.eval()
     res = model(img)
-    like = torch.zeros((28, 28))
-    for i in range(28):
-        for j in range(28):
+    b, c, w, h = res.shape
+    like = torch.zeros((w, h))
+    for i in range(w):
+        for j in range(h):
             probs = F.softmax(res[0, :, i, j], dim=0)
             prob = (img[0, :, i, j] * 255.).int().cpu().numpy()[0]
             like[i][j] = probs[prob]
@@ -53,17 +54,22 @@ def likelihood(img_data, model):
     return like
 
 
-def draw_likelihood_plot(data, model):
-    columns = 4
-    rows = 4
-    fig = plt.figure(figsize=(8, 8))
+def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=(4,4)):
+    columns, rows = dim
+    fig = plt.figure(figsize=(16, 16))
     i = 1
     for img in iter(data):
-        if i <= 16:
-            fig.add_subplot(rows, columns, i)
-            like = likelihood(img, model)
-            sns.heatmap(like.detach().cpu().numpy(), cmap="gray", vmax=.1)
+        if i <= (columns * rows) * 2:
+            fig.add_subplot(rows * 2, columns * 2, i)
+            like = likelihood(img if img_index == None else img[img_index], model)
+            sns.heatmap(like.detach().cpu().numpy(), cmap=cmap, vmax=vmax)
             plt.xticks([])
             plt.yticks([])
-        i += 1
+            
+            fig.add_subplot(rows * 2, columns* 2, i + 1)
+            plt.imshow((img if img_index == None else img[img_index])[0][0][0], cmap="gray")
+            plt.xticks([])
+            plt.yticks([])
+        i += 2
     plt.show()
+
