@@ -35,9 +35,11 @@ def maskAConv(c_in=1, c_out=128, k_size=7, stride=1, pad=3):
         nn.ReLU(True))
 
 class MaskBConvBlock(nn.Module):
-    def __init__(self, h=128, k_size=7, stride=1, pad=3):
+    def __init__(self, h=128, k_size=7, stride=1, pad=3, residual_connection=False):
         """1x1 Conv + 2D Masked Convolution (type B) + 1x1 Conv"""
         super(MaskBConvBlock, self).__init__()
+
+        self.residual_connection = residual_connection
 
         self.net = nn.Sequential(
             MaskedConv2d('B', h, h, k_size, stride, pad, bias=False),
@@ -46,17 +48,17 @@ class MaskBConvBlock(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x) + x  #Try residual connection
+        return self.net(x) + x  if self.residual_connection else self.net(x) #Try residual connection
 
 class COCOPixelCNN(PixelCNN):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, residual_connection=False, *args, **kwargs):
         super(COCOPixelCNN, self).__init__(*args, **kwargs)
 
         self.MaskAConv = maskAConv()
 
         MaskBConv = []
         for i in range(15):
-            MaskBConv.append(MaskBConvBlock())
+            MaskBConv.append(MaskBConvBlock(residual_connection=residual_connection))
             
         self.MaskBConv = nn.Sequential(*MaskBConv)
 
