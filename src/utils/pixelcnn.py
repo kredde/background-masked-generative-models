@@ -34,8 +34,22 @@ def generate_images(model, channels=1, img_dim=(28, 28)):
 
 
 def randomize_background(img, norm=0.5):
+    img = img.clone()
     img[img == 0] = np.random.random_sample() * norm
     return img
+
+def randomize_background_normal(foreground, mean=0.4420, std=0.2413):
+    bg = torch.empty((foreground.shape)).normal_(mean=mean,std=std)
+    bg[bg < 0] = 0.0
+    bg[bg > 1] = 1.0
+    
+    mask = foreground.clone()
+    mask[mask == 0] = 1
+    mask[mask < 1] = 0
+    
+    bg_masked = bg * mask
+    
+    return bg_masked + foreground
 
 
 def likelihood(img_data, model):

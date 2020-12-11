@@ -8,6 +8,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.nn import functional as F
 import torch
+from src.utils.pixelcnn import randomize_background
 
 
 class MaskedConv2d(nn.Conv2d):
@@ -52,7 +53,11 @@ class MaskBConvBlock(nn.Module):
 
 
 class COCOPixelCNN(PixelCNN):
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, kernel_size: int = 7, padding: int = 3, in_channels: int = 1, concat_dataset: bool = True, bg_aug: bool = False, residual_connection: bool = False, *args, **kwargs):
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0,
+                 kernel_size: int = 7, padding: int = 3, in_channels: int = 1, concat_dataset: bool = True, bg_aug: bool = False,
+                 random_bg: bool = False, target_random: bool = False, single_loss: bool = False, residual_connection: bool = False,
+                 *args, **kwargs):
+
         super(COCOPixelCNN, self).__init__(*args, **kwargs)
 
         self.learning_rate = learning_rate
@@ -61,13 +66,17 @@ class COCOPixelCNN(PixelCNN):
         self.in_channels = in_channels
         self.concat_dataset = concat_dataset
         self.bg_aug = bg_aug
+        self.random_bg = random_bg
+        self.target_random = target_random
+        self.single_loss = single_loss
 
-        self.MaskAConv = maskAConv()
+        self.MaskAConv = maskAConv(
+            c_in=in_channels, pad=padding, k_size=kernel_size)
 
         MaskBConv = []
         for i in range(15):
-            MaskBConv.append(MaskBConvBlock(
-                residual_connection=residual_connection))
+            MaskBConv.append(MaskBConvBlock(k_size=kernel_size, pad=padding,
+                                            residual_connection=residual_connection))
 
         self.MaskBConv = nn.Sequential(*MaskBConv)
 
@@ -93,18 +102,36 @@ class COCOPixelCNN(PixelCNN):
         x, _ = background_batch
 
         if self.bg_aug:
-            x_foreground, _ = foreground_batch
-            target = Variable((x.data[:, 0] * 255).long())
 
-            x1 = Variable(x.cuda())
-            logits = self.forward(x1)
-            loss = self.cross_entropy_loss(logits, target)
+            if self.random_bg:
+                x_foreground, x_foreground_randbg, _ = foreground_batch
 
-            x2 = Variable(x_foreground.cuda())
-            logits2 = self.forward(x2)
-            loss2 = self.cross_entropy_loss(logits2, target)
+                if self.target_random:
+                    target = x_foreground_randbg.clone()
+                else:
+                    target = x_foreground
+                x2 = Variable(x_foreground_randbg.cuda())
 
-            loss = ((loss + loss2) / 2) + torch.square(loss - loss2)
+            else:
+                x_foreground, _ = foreground_batch
+                target = x_foreground.clone()
+
+                x2 = Variable(x_foreground.cuda())
+
+            target = Variable((target.data[:, 0] * 255).long())
+
+            if self.single_loss:
+                logits = self.forward(x2)
+                loss = self.cross_entropy_loss(logits, target)
+            else:
+                x1 = Variable(x.cuda())
+                logits = self.forward(x1)
+                loss = self.cross_entropy_loss(logits, target)
+
+                logits2 = self.forward(x2)
+                loss2 = self.cross_entropy_loss(logits2, target)
+
+                loss = ((loss + loss2) / 2) + torch.square(loss - loss2)
 
         else:
             input = Variable(x.cuda())
