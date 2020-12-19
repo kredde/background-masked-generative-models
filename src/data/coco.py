@@ -8,25 +8,28 @@ from math import floor
 import sys
 from src.utils.pixelcnn import randomize_background, randomize_background_normal
 
+
 class ConcatDataset(Dataset):
-    def __init__(self, background, foreground, rand_bg: bool = False, rand_normal_bg: bool = False):
+    def __init__(self, background, foreground, rand_bg: bool = False, rand_normal_bg: bool = False, bg_aug_max: float = 0.5):
         self.bg = background
         self.fg = foreground
         self.rand_bg = rand_bg
         self.rand_normal_bg = rand_normal_bg
+        self.bg_aug_max = bg_aug_max
 
     def __getitem__(self, i):
         bg = self.bg[i]
         fg_img, fg_targ = self.fg[i]
-        
+
         if self.rand_bg:
             if self.rand_normal_bg:
                 fg_rand_img = randomize_background_normal(fg_img)
             else:
-                fg_rand_img = randomize_background(fg_img)
+                fg_rand_img = randomize_background(
+                    fg_img, norm=self.bg_aug_max)
             return (bg, (fg_img, fg_rand_img, fg_targ))
-        
-        return tuple(self.bg[i], self.fg[i])
+
+        return (self.bg[i], self.fg[i])
 
     def __len__(self):
         return min(len(d) for d in [self.bg, self.fg])
@@ -35,7 +38,7 @@ class ConcatDataset(Dataset):
 class COCODataModule(LightningDataModule):
 
     def __init__(self, batch_size: int = 64, foreground_data_dir: str = "./data/COCO/foreground_images/", background_data_dir: str = "./data/COCO/background_images/", seed: int = 42, num_workers: int = 8,
-                 normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8, resize_dim=(32, 32), resize: bool = True, background_only: bool = False, rand_bg: bool = False, rand_normal_bg: bool = False):
+                 normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8, resize_dim=(32, 32), resize: bool = True, background_only: bool = False, rand_bg: bool = False, rand_normal_bg: bool = False, bg_aug_max: float = 0.5):
 
         super().__init__()
 
@@ -50,6 +53,7 @@ class COCODataModule(LightningDataModule):
         self.background_only = background_only
         self.rand_bg = rand_bg
         self.rand_normal_bg = rand_normal_bg
+        self.bg_aug_max = bg_aug_max
 
         transform = []
         if convert_grayscale:
@@ -94,7 +98,8 @@ class COCODataModule(LightningDataModule):
                 self.background_train,
                 self.foreground_train,
                 rand_bg=self.rand_bg,
-                rand_normal_bg=self.rand_normal_bg
+                rand_normal_bg=self.rand_normal_bg,
+                bg_aug_max=self.bg_aug_max
             )
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
 
@@ -106,7 +111,8 @@ class COCODataModule(LightningDataModule):
                 self.background_val,
                 self.foreground_val,
                 rand_bg=self.rand_bg,
-                rand_normal_bg=self.rand_normal_bg
+                rand_normal_bg=self.rand_normal_bg,
+                bg_aug_max=self.bg_aug_max
             )
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
 
@@ -118,6 +124,7 @@ class COCODataModule(LightningDataModule):
                 self.background_test,
                 self.foreground_test,
                 rand_bg=self.rand_bg,
-                rand_normal_bg=self.rand_normal_bg
+                rand_normal_bg=self.rand_normal_bg,
+                bg_aug_max=self.bg_aug_max
             )
         return DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)

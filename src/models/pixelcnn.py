@@ -38,6 +38,8 @@ class PixelCNN(LightningModule):
         self.in_channels = in_channels
         self.mse = mse
         self.fg_mse = fg_mse
+        self.kernel_size = kernel_size
+        self.padding = padding
 
         self.blocks = nn.Sequential(
             MaskedConv2d('A', in_channels,  64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
