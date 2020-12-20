@@ -4,10 +4,11 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 import numpy as np
+from PIL import Image
 
 
 class MNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16):
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, resize: bool = False, resize_dim: tuple = (32, 32)):
         super().__init__()
 
         self.batch_size = batch_size
@@ -15,8 +16,10 @@ class MNISTDataModule(LightningDataModule):
         self.data_dir = data_dir
         self.num_workers = num_workers
         self.seed = seed
+        self.resize = resize
+        self.resize_dim = resize_dim
 
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()]if self.resize else [transforms.ToTensor()])
 
     def prepare_data(self):
         # download only

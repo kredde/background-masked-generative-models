@@ -5,7 +5,6 @@ from torchvision import transforms, datasets
 import numpy as np
 from PIL import Image
 from math import floor
-import sys
 
 class ConcatDataset(Dataset):
     def __init__(self, *datasets):
