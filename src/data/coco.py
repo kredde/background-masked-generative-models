@@ -5,7 +5,6 @@ from torchvision import transforms, datasets
 import numpy as np
 from PIL import Image
 from math import floor
-import sys
 
 class ConcatDataset(Dataset):
     def __init__(self, *datasets):
@@ -20,7 +19,7 @@ class ConcatDataset(Dataset):
 class COCODataModule(LightningDataModule):
     
     def __init__(self, batch_size: int = 64, foreground_data_dir: str = "./data/COCO/foreground_images/", background_data_dir: str = "./data/COCO/background_images/",seed: int = 42, num_workers: int = 8, 
-    normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8):
+    normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8, background_only: bool = False):
         
         super().__init__()
         
@@ -32,6 +31,7 @@ class COCODataModule(LightningDataModule):
         self.split_ratio = split_ratio
         self.num_workers = num_workers
         self.seed = seed
+        self.background_only = background_only
         
         self.transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()]) if convert_grayscale else transforms.Compose([transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()])
 
@@ -56,22 +56,34 @@ class COCODataModule(LightningDataModule):
     
     
     def train_dataloader(self):
-        concat_dataset = ConcatDataset(
-            self.background_train,
-            self.foreground_train
-        )
-        return DataLoader(concat_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
+        if self.background_only:
+            dataset = self.background_train
+        
+        else:
+            dataset = ConcatDataset(
+                self.background_train,
+                self.foreground_train
+            )
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
     
     def val_dataloader(self):
-        concat_dataset = ConcatDataset(
-            self.background_val,
-            self.foreground_val
-        )
-        return DataLoader(concat_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
+        if self.background_only:
+            dataset = self.background_val
+        
+        else: 
+            dataset = ConcatDataset(
+                self.background_val,
+                self.foreground_val
+            )
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
     
     def test_dataloader(self):
-        concat_dataset = ConcatDataset(
-            self.background_test,
-            self.foreground_test
-        )
-        return DataLoader(concat_dataset, batch_size=1, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
+        if self.background_only:
+            dataset = self.background_test
+        
+        else:
+            dataset = ConcatDataset(
+                self.background_test,
+                self.foreground_test
+            )
+        return DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
