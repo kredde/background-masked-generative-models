@@ -7,6 +7,7 @@ from torch.nn import functional as F
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.autograd import Variable
+from src.utils.pixelcnn import positionalencoding2d
 import torch
 
 
@@ -37,6 +38,8 @@ class PixelCNN(LightningModule):
         self.in_channels = in_channels
         self.mse = mse
         self.fg_mse = fg_mse
+        self.kernel_size = kernel_size
+        self.padding = padding
 
         self.blocks = nn.Sequential(
             MaskedConv2d('A', in_channels,  64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
@@ -66,7 +69,7 @@ class PixelCNN(LightningModule):
         input = Variable(x.cuda())
         if self.position_encode:
             input = self.positional_encoding(input)
-        target = Variable((x.data[:, 0] * 8).long())
+        target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
         if self.background_subtraction:  # Set all likelihood values of background pixels to zero
@@ -136,12 +139,7 @@ class PixelCNN(LightningModule):
         return F.mse_loss(values, target)
 
     def positional_encoding(self, batch):
-        encode_line = torch.Tensor(
-            list(range(1, batch.shape[2] + 1))).repeat(batch.shape[2], 1).cuda()
-        encode_x = encode_line.repeat(batch.shape[0], 1, 1, 1).cuda()
-        encode_y = torch.transpose(encode_line, 0, 1).repeat(
-            batch.shape[0], 1, 1, 1).cuda()
-        encoded = torch.cat((batch, encode_x, encode_y)).view(
-            batch.shape[0], 3, *batch.shape[2:4])
-
+        pe = positionalencoding2d(4, *batch.shape[2:4])
+        pe = pe.repeat(batch.shape[0], 1, 1, 1)
+        encoded = torch.cat((batch, pe[:, 0].view(batch.shape), pe[:, 1].view(batch.shape), pe[:, 2].view(batch.shape),pe[:, 3].view(batch.shape))).view(batch.shape[0], 5, *batch.shape[2:4])
         return encoded
