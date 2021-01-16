@@ -2,23 +2,40 @@ from pytorch_lightning.core.lightning import LightningModule
 import torch
 import torch.nn as nn
 import math
-import matplotlib.pyplot as plt
 from numbers import Number
 
-class BasicVAEVariance(LightningModule):
+class DeeperVAEVariance(LightningModule):
     def __init__(self, lr: float = 1e-3, kl_coeff: float = 0.1):
-        super(BasicVAEVariance, self).__init__()
+        super(DeeperVAEVariance, self).__init__()
 
         self.lr = lr
         self.kl_coeff = kl_coeff
 
-        self.fc1 = nn.Linear(784, 400)
-        self.fc_mu_z = nn.Linear(400, 80)
-        self.fc_log_var_z = nn.Sequential(nn.Linear(400, 80))
+        self.encoder_part = nn.Sequential(
+            nn.Linear(784, 512), 
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU())
+        
+        self.fc_mu_z = nn.Linear(64, 40)
+        self.fc_log_var_z = nn.Linear(64, 40)
 
-        self.fc2 = nn.Linear(80, 400)
-        self.fc_mu_x = nn.Linear(400, 784)
-        self.fc_log_var_x = nn.Sequential(nn.Linear(400, 784))
+        self.decoder_part = nn.Sequential(
+            nn.Linear(40, 64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 512),
+            nn.ReLU())
+
+        self.fc_mu_x = nn.Linear(512, 784)
+        self.fc_log_var_x = nn.Linear(512, 784)
 
         self.relu = nn.ReLU(inplace=True)
     
@@ -36,14 +53,13 @@ class BasicVAEVariance(LightningModule):
 
     def encode(self, x):
         x = torch.flatten(x, 1)
-        h1 = self.relu(self.fc1(x))
+        h = self.encoder_part(x)
 
-        return self.fc_mu_z(h1), self.fc_log_var_z(h1)
+        return self.fc_mu_z(h), self.fc_log_var_z(h)
     
     def decode(self, z):
-        z = self.relu(self.fc2(z))
-
-        return self.fc_mu_x(z), self.fc_log_var_x(z)
+        x_hat = self.decoder_part(z)
+        return self.fc_mu_x(x_hat), self.fc_log_var_x(x_hat)
 
     def _run_step(self, x):
         mu_z, log_var_z = self.encode(x)
@@ -71,12 +87,12 @@ class BasicVAEVariance(LightningModule):
         return recons_x
     
     def step(self, batch, batch_idx):
-        x, mask, _ = batch
+        x, _ = batch
         mu_x, log_var_x, p, q, z = self._run_step(x)
-       
-        x = torch.flatten(x, 1)
 
-        recon_loss = self.loss_func(x, mu_x, log_var_x) #LOSS FUNCTION!!!!
+        x = torch.flatten(x, 1)
+        
+        recon_loss = self.loss_func(x, mu_x, log_var_x)
 
         log_qz = q.log_prob(z)
         log_pz = p.log_prob(z)
@@ -111,15 +127,14 @@ class BasicVAEVariance(LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
-
     def loss_func(self, target, mean, log_var):
         
         mask = target.clone()
         
         # log_var = log_var * mask
-        
+
         std = torch.exp(log_var / 2)
-        
+       
         var = (std ** 2)
         log_std = math.log(std) if isinstance(std, Number) else std.log()
         # log_pi = math.log(math.sqrt(2 * math.pi))
@@ -127,17 +142,14 @@ class BasicVAEVariance(LightningModule):
         bg_part = torch.clone((log_std))
         fg_part = torch.clone((-log_std))
 
-        bg_part[mask > 0.0] = 0.0
-        # fg_part[mask == 0.0] = 0.0
+        bg_part[mask > 0] = 0
+        fg_part[mask == 0] = 0
 
-        # fg_log_prob = -((target - mean) ** 2) / (2 * var) + bg_part
-        bg_log_prob = -((target - mean) ** 2) / (2 * var) + fg_part + bg_part
+        fg_log_prob = -((target - mean) ** 2) / (2 * var) + bg_part
+        bg_log_prob = -((target - mean) ** 2) / (2 * var) + fg_part
         # dist = torch.distributions.Normal(mean, std)
 
-        loss = torch.mean(-(bg_log_prob))
-        # loss = torch.mean((target - mean) ** 2)
+        loss = torch.mean(-(fg_log_prob + bg_log_prob))
         return loss
-
-    
 
 

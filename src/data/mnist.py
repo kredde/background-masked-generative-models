@@ -18,11 +18,14 @@ class MNISTDataModule(LightningDataModule):
         self.seed = seed
         self.resize = resize
         self.resize_dim = resize_dim
+        self.normalize = normalize
 
         transform = []
         if self.resize:
             transform.append(transforms.Resize(
                 (32, 32), interpolation=Image.BICUBIC))
+        if self.normalize:
+            transform.append(transforms.Normalize(0, 1))
 
         transform.append(transforms.ToTensor())
 
@@ -33,8 +36,7 @@ class MNISTDataModule(LightningDataModule):
         MNIST(self.data_dir, train=True, download=True,
               transform=self.transform)
         MNIST(self.data_dir, train=False, download=True,
-              transform=transforms.Compose(
-                  [transforms.ToTensor()]))
+              transform=self.transform)
 
     def setup(self):
         # transform
