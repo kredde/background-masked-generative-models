@@ -54,15 +54,12 @@ class MaskBConvBlock(nn.Module):
 
 
 class BgAugPixelCNNNew(LightningModule):
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, foreground_addition_value: float = 0.0, 
-                 kernel_size: int = 7, padding: int = 3, in_channels: int = 1, bg_aug: bool = True, bg_aug_max: float = 1.0, residual_connection: bool = False, 
-                 *args, **kwargs):
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, kernel_size: int = 7, padding: int = 3, in_channels: int = 1, bg_aug: bool = True, bg_aug_max: float = 1.0, residual_connection: bool = False, *args, **kwargs):
         super(BgAugPixelCNNNew, self).__init__(*args, **kwargs)
 
         self.learning_rate = learning_rate
         self.background_subtraction = background_subtraction
         self.background_subtraction_value = background_subtraction_value
-        self.foreground_addition_value = foreground_addition_value
         self.in_channels = in_channels
         self.kernel_size = kernel_size
         self.padding = padding
@@ -162,7 +159,7 @@ class BgAugPixelCNNNew(LightningModule):
 
         mask = torch.reshape(torch.clone(target), tuple(logit_shape))
         mask = mask.type(torch.FloatTensor)
-        mask[mask > 0] = 1 + self.foreground_addition_value
+        mask[mask > 0] = 1
         mask[mask == 0] = self.background_subtraction_value
         mask = mask.repeat(1, 256, 1, 1)  # this should not be static
 

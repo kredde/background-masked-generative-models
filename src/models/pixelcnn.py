@@ -28,7 +28,7 @@ class MaskedConv2d(nn.Conv2d):
 
 class PixelCNN(LightningModule):
 
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, foreground_addition_value: float = 0.0, kernel_size: int = 7, padding: int = 3, in_channels: int = 1, position_encode: bool = False, mse: bool = False, fg_mse: bool = False, *args, **kwargs):
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, foreground_addition_value: float = 0.0, kernel_size: int = 7, padding: int = 3, in_channels: int = 1, position_encode: bool = False, mse: bool = False, fg_mse: bool = False, reg: float = 0.0, *args, **kwargs):
         super(PixelCNN, self).__init__(*args, **kwargs)
         self.learning_rate = learning_rate
         self.background_subtraction = background_subtraction
@@ -40,6 +40,7 @@ class PixelCNN(LightningModule):
         self.fg_mse = fg_mse
         self.kernel_size = kernel_size
         self.padding = padding
+        self.reg = reg
 
         self.blocks = nn.Sequential(
             MaskedConv2d('A', in_channels,  64, kernel_size, 1, padding, bias=False), nn.BatchNorm2d(
@@ -104,10 +105,12 @@ class PixelCNN(LightningModule):
         loss = self._step(val_batch, batch_idx)
 
         self.log('test_loss', loss)
+
         return {'test_loss': loss}
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = Adam(self.parameters(),
+                         lr=self.learning_rate, weight_decay=self.reg)
         lr_scheduler = {'scheduler': ExponentialLR(optimizer, gamma=0.95),
                         'name': 'expo_lr'}
         return [optimizer], [lr_scheduler]
@@ -141,5 +144,6 @@ class PixelCNN(LightningModule):
     def positional_encoding(self, batch):
         pe = positionalencoding2d(4, *batch.shape[2:4])
         pe = pe.repeat(batch.shape[0], 1, 1, 1)
-        encoded = torch.cat((batch, pe[:, 0].view(batch.shape), pe[:, 1].view(batch.shape), pe[:, 2].view(batch.shape),pe[:, 3].view(batch.shape))).view(batch.shape[0], 5, *batch.shape[2:4])
+        encoded = torch.cat((batch, pe[:, 0].view(batch.shape), pe[:, 1].view(batch.shape), pe[:, 2].view(
+            batch.shape), pe[:, 3].view(batch.shape))).view(batch.shape[0], 5, *batch.shape[2:4])
         return encoded
