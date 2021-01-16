@@ -16,6 +16,7 @@ class FashionMNISTDataModule(LightningDataModule):
         self.seed = seed
 
         self.transform = transforms.Compose([transforms.ToTensor()])
+        #, transforms.Normalize(mean=[0.2860], std=[0.3530])
 
     def prepare_data(self):
         # download only
