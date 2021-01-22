@@ -40,7 +40,6 @@ class MaskBConvBlock(nn.Module):
         super(MaskBConvBlock, self).__init__()
 
         self.residual_connection = residual_connection
-
         self.net = nn.Sequential(
             MaskedConv2d('B', h, h, k_size, stride, pad, bias=False),
             nn.BatchNorm2d(h),
@@ -56,7 +55,7 @@ class COCOPixelCNN(PixelCNN):
     def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0,
                  kernel_size: int = 7, padding: int = 3, in_channels: int = 1, concat_dataset: bool = True, bg_aug: bool = False,
                  random_bg: bool = False, target_random: bool = False, single_loss: bool = False, residual_connection: bool = False,
-                 mse_loss: bool = False, target_background: bool = False, target_fg: bool = False, random_normal_bg_target: bool = False,
+                 mse_loss: bool = False, target_background: bool = False, target_fg: bool = False, random_normal_bg_target: bool = False, reg: float = 0.0,
                  *args, **kwargs):
 
         super(COCOPixelCNN, self).__init__(*args, **kwargs)
@@ -75,6 +74,8 @@ class COCOPixelCNN(PixelCNN):
         self.mse_loss = mse_loss
         self.target_fg = target_fg
         self.random_normal_bg_target = random_normal_bg_target
+        self.reg = reg
+        self.svhn = False
 
         # set up residual connection blocks
         if residual_connection:
@@ -219,7 +220,11 @@ class COCOPixelCNN(PixelCNN):
             background_batch, foreground_batch = val_batch
         else:
             background_batch = val_batch
-        x, _ = background_batch
+        if self.svhn:
+            x, _ = val_batch
+            x = x.unsqueeze(0)
+        else:
+            x, _ = background_batch
 
         input = Variable(x.cuda())
         if self.target_fg:
@@ -251,7 +256,8 @@ class COCOPixelCNN(PixelCNN):
         return l
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = Adam(self.parameters(),
+                         lr=self.learning_rate, weight_decay=self.reg)
         lr_scheduler = {'scheduler': ExponentialLR(optimizer, gamma=0.95),
                         'name': 'expo_lr'}
         return [optimizer], [lr_scheduler]

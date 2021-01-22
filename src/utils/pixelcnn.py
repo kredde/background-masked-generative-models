@@ -38,20 +38,21 @@ def randomize_background(img, norm=0.5):
     img[img == 0] = np.random.random_sample() * norm
     return img
 
+
 def randomize_background_normal(foreground, mean=0.4420, std=0.2413):
-    bg = torch.empty((foreground.shape)).normal_(mean=mean,std=std).cuda()
+    bg = torch.empty((foreground.shape)).normal_(mean=mean, std=std).cuda()
     bg[bg < 0] = 0.0
     bg[bg > 1] = 1.0
-    
+
     mask = foreground.clone()
     mask[mask == 0] = 2
     mask[mask <= 1] = 0
     mask[mask == 2] = 1
-    
+
     bg_masked = bg * mask
-    
+
     img = bg_masked + foreground
-    
+
     return img
 
 
@@ -67,6 +68,8 @@ def likelihood(img_data, model):
     for i in range(w):
         for j in range(h):
             probs = F.softmax(res[0, :, i, j], dim=0)
+#             probs = res[0, :, i, j]
+
             prob = (img[0, :, i, j] * 255.).int().cpu().numpy()[0]
             like[i][j] = probs[prob]
 
@@ -82,7 +85,8 @@ def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=
             fig.add_subplot(rows * 2, columns * 2, i)
             like = likelihood(img if img_index ==
                               None else img[img_index], model)
-            sns.heatmap(like.detach().cpu().numpy(), cmap=cmap, vmax=vmax)
+            sns.heatmap(like.detach().cpu().numpy(),
+                        cmap=cmap, vmax=vmax, vmin=0)
             plt.xticks([])
             plt.yticks([])
 
@@ -93,6 +97,55 @@ def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=
             plt.yticks([])
         i += 2
     plt.show()
+
+
+def draw_likelihood_plot_ratio(data, model_full, model_back, cmap="gray", vmax=.1, img_index=None, dim=(4, 4)):
+    columns, rows = dim
+    fig = plt.figure(figsize=(16, 16))
+    i = 1
+    for img in iter(data):
+        if i <= (columns * rows) * 2:
+            fig.add_subplot(rows * 2, columns * 2, i)
+            like = likelihood_ratio(
+                img if img_index == None else img[img_index], model_full, model_back)
+
+            sns.heatmap(like.detach().cpu().numpy(),
+                        cmap=cmap, vmax=vmax, vmin=0)
+            plt.xticks([])
+            plt.yticks([])
+
+            fig.add_subplot(rows * 2, columns * 2, i + 1)
+            plt.imshow((img if img_index == None else img[img_index])[
+                       0][0][0], cmap="gray")
+            plt.xticks([])
+            plt.yticks([])
+        i += 2
+    plt.show()
+
+
+def likelihood_ratio(img_data, model_full, model_back):
+    img = img_data[0].cuda()
+
+    img = img.cuda()
+    model_full.eval()
+    res = model_full(img)
+
+    model_back.eval()
+    res_back = model_back(img)
+
+    b, c, w, h = res.shape
+    like = torch.zeros((w, h))
+    for i in range(w):
+        for j in range(h):
+            probs1 = res[0, :, i, j]
+            probs2 = res_back[0, :, i, j]
+
+            probs = probs1 - (1 * probs2)
+
+            prob = (img[0, :, i, j] * 255.).int().cpu().numpy()[0]
+            like[i][j] = probs[prob]
+
+    return like
 
 
 def positionalencoding2d(d_model, height, width):

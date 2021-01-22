@@ -2,7 +2,7 @@
 #SBATCH --partition mllab  # the partition for the Lab course
 #SBATCH -N 1 # number of nodes
 #SBATCH --gres=gpu:1 # number of GPUs to be allocated
-#SBATCH -t 0-23:00 # time after which the process will be killed (D-HH:MM)
+#SBATCH -t 1-10:00 # time after which the process will be killed (D-HH:MM)
 #SBATCH -o "/nfs/homedirs/%u/slurm-output/slurm-%j.out"  # where the output log will be stored
 #SBATCH --mem=16000 # the memory (MB) that is allocated to the job. If your job exceeds this it will be killed -- but don't set it too large since it will block resources and will lead to your job being given a low priority by the scheduler.
 #SBATCH --qos=interactivelab   # this line ensures a very high priority (e.g. start a Jupyter notebook) but only one job per user can run under this mode (remove for normal compute jobs).

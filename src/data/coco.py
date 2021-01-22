@@ -5,6 +5,7 @@ from torchvision import transforms, datasets
 from PIL import Image
 from math import floor
 from src.utils.pixelcnn import randomize_background, randomize_background_normal
+from src.data.transforms.mutate import Mutate
 
 
 class ConcatDataset(Dataset):
@@ -36,7 +37,7 @@ class ConcatDataset(Dataset):
 class COCODataModule(LightningDataModule):
 
     def __init__(self, batch_size: int = 64, foreground_data_dir: str = "./data/COCO/foreground_images/", background_data_dir: str = "./data/COCO/background_images/", seed: int = 42, num_workers: int = 8,
-                 normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8, resize_dim=(32, 32), resize: bool = True, background_only: bool = False, rand_bg: bool = False, rand_normal_bg: bool = False, bg_aug_max: float = 0.5):
+                 normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8, resize_dim=(32, 32), resize: bool = True, background_only: bool = False, rand_bg: bool = False, rand_normal_bg: bool = False, bg_aug_max: float = 0.5,  mutate: float = 0.0):
 
         super().__init__()
 
@@ -52,6 +53,7 @@ class COCODataModule(LightningDataModule):
         self.rand_bg = rand_bg
         self.rand_normal_bg = rand_normal_bg
         self.bg_aug_max = bg_aug_max
+        self.mutate = mutate
 
         transform = []
         if convert_grayscale:
@@ -61,6 +63,10 @@ class COCODataModule(LightningDataModule):
                 resize_dim, interpolation=Image.BICUBIC))
 
         transform.append(transforms.ToTensor())
+
+        if self.mutate > 0:
+            transform.append(Mutate(rate=mutate, shape=(1, *resize_dim)))
+
         self.transform = transforms.Compose(transform)
 
     def prepare_data(self):
