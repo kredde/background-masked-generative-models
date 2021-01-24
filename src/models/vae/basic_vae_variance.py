@@ -4,10 +4,14 @@ import torch.nn as nn
 import math
 import matplotlib.pyplot as plt
 from numbers import Number
+import torch.nn.functional as F
+
 
 class BasicVAEVariance(LightningModule):
     def __init__(self, lr: float = 1e-3, kl_coeff: float = 0.1, use_custom_loss: bool = True, bg_aug_train: bool = False):
         super(BasicVAEVariance, self).__init__()
+
+        # self.neg_pdf_loss = neg_pdf_loss
 
         self.lr = lr
         self.kl_coeff = kl_coeff
@@ -23,7 +27,7 @@ class BasicVAEVariance(LightningModule):
         self.fc_var_x = nn.Sequential(nn.Linear(400, 784))
 
         self.relu = nn.ReLU(inplace=True)
-    
+
     def forward(self, x):
         batch_size, width, height = x.size()
         
@@ -71,7 +75,7 @@ class BasicVAEVariance(LightningModule):
         recons_x = p.sample()
         # recons_x = mu_x
         return recons_x
-    
+
     def step(self, batch, batch_idx):
         if self.bg_aug_train:
             x, mask, _ = batch
@@ -102,7 +106,6 @@ class BasicVAEVariance(LightningModule):
         }
 
         return loss, logs
-    
 
     def training_step(self, batch, batch_idx):
         loss, logs = self.step(batch, batch_idx)
@@ -115,7 +118,7 @@ class BasicVAEVariance(LightningModule):
         loss, logs = self.step(batch, batch_idx)
         self.log_dict({f"val_{k}": v for k, v in logs.items()})
         return loss
-    
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
@@ -145,6 +148,9 @@ class BasicVAEVariance(LightningModule):
         # loss = torch.mean((target - mean) ** 2)
         return loss
 
-    
+    def negative_pdf_loss(self, target, mean, log_var):
+        std = torch.exp(log_var / 2)
+        dist = torch.distributions.Normal(mean, std)
+        loss = torch.mean(-dist.log_prob(target))
 
-
+        return loss

@@ -5,8 +5,11 @@ from torchvision import transforms
 from torchvision.datasets import FashionMNIST
 import numpy as np
 
+from src.data.transforms.mutate import Mutate
+
+
 class FashionMNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16):
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, perturb: bool = False, resize: bool = False, resize_dim: tuple = (32, 32), normalize: bool = False, mutate: float = 0.0):
         super().__init__()
 
         self.batch_size = batch_size
@@ -14,9 +17,23 @@ class FashionMNISTDataModule(LightningDataModule):
         self.data_dir = data_dir
         self.num_workers = num_workers
         self.seed = seed
+        self.resize = resize
+        self.normalize = normalize
+        self.mutate = mutate
 
-        self.transform = transforms.Compose([transforms.ToTensor()])
-        #, transforms.Normalize(mean=[0.2860], std=[0.3530])
+        transform = []
+        if self.resize:
+            transform.append(transforms.Resize(
+                resize_dim, interpolation=Image.BICUBIC))
+        if self.normalize:
+            transform.append(transforms.Normalize(0, 1))
+
+        transform.append(transforms.ToTensor())
+
+        if self.mutate > 0:
+            transform.append(Mutate(rate=mutate))
+
+        self.transform = transforms.Compose(transform)
 
     def prepare_data(self):
         # download only
@@ -25,7 +42,7 @@ class FashionMNISTDataModule(LightningDataModule):
         FashionMNIST(self.data_dir, train=False, download=True,
                      transform=transforms.Compose(
                          [transforms.ToTensor()]))
-    
+
     def setup(self):
         # transform
         mnist_train = FashionMNIST(self.data_dir, train=True,

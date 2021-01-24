@@ -8,7 +8,7 @@ from PIL import Image
 
 
 class MNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, resize: bool = False, resize_dim: tuple = (32, 32)):
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, resize: bool = False, resize_dim: tuple = (32, 32), normalize: bool = False):
         super().__init__()
 
         self.batch_size = batch_size
@@ -18,17 +18,25 @@ class MNISTDataModule(LightningDataModule):
         self.seed = seed
         self.resize = resize
         self.resize_dim = resize_dim
+        self.normalize = normalize
 
-        self.transform = transforms.Compose([transforms.Resize((32, 32), interpolation=Image.BICUBIC), transforms.ToTensor()]if self.resize 
-        else [transforms.ToTensor()])
-        #, transforms.Normalize(mean=[0.1307], std=[0.3081])
+        transform = []
+        if self.resize:
+            transform.append(transforms.Resize(
+                (32, 32), interpolation=Image.BICUBIC))
+        if self.normalize:
+            transform.append(transforms.Normalize(0, 1))
+
+        transform.append(transforms.ToTensor())
+
+        self.transform = transforms.Compose(transform)
 
     def prepare_data(self):
         # download only
         MNIST(self.data_dir, train=True, download=True,
               transform=self.transform)
         MNIST(self.data_dir, train=False, download=True,
-              transform= self.transform)
+              transform=self.transform)
 
     def setup(self):
         # transform
@@ -53,29 +61,3 @@ class MNISTDataModule(LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=1, shuffle=False, num_workers=self.num_workers, drop_last=True, pin_memory=True)
-
-
-class ConstantDataset(torch.utils.data.Dataset):
-    def __init__(self, value=0, shape=(10000, 1, 28, 28)):
-
-        self.values = torch.Tensor(np.zeros(shape) + value).float()
-        self.labels = np.zeros(shape[0])
-
-    def __len__(self):
-        return len(self.values)
-
-    def __getitem__(self, index):
-        return self.values[index], self.labels[index]
-
-
-class RandomDataset(torch.utils.data.Dataset):
-    def __init__(self, shape=(10000, 1, 28, 28)):
-
-        self.values = torch.Tensor(np.random.uniform(0, 1, shape)).float()
-        self.labels = np.zeros(shape[0])
-
-    def __len__(self):
-        return len(self.values)
-
-    def __getitem__(self, index):
-        return self.values[index], self.labels[index]
