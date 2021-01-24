@@ -3,6 +3,9 @@ import seaborn as sns
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+from numbers import Number
+import math
+from scipy.stats import multivariate_normal, norm
 
 def generate_images(model, test_data, input=28, random_bg=False):
     columns = 3
@@ -12,14 +15,16 @@ def generate_images(model, test_data, input=28, random_bg=False):
     for img in iter(test_data):
         if i <= (columns * rows) * 3:
            
-            img = img[0][0] if not random_bg else randomize_background(img[0][0])
+            img = img[0][0] if not random_bg else constant_gray_bg(img[0][0])
             # img = img[0] # Just for constant images
-
-            rec_mu, rec_var = model(img.cuda())
-            std = torch.exp(rec_var / 2)
-            normalized_std = normalize(std)
-            p = torch.distributions.Normal(rec_mu, normalized_std)
+            mask = torch.flatten(img.clone(), 1)
             
+            rec_mu, rec_var = model(img.cuda())
+
+            std = rec_var.sqrt()
+            p = torch.distributions.Normal(rec_mu, std)
+            recon = p.sample()
+
             # fig.add_subplot(rows * 4, columns * 4, i)
             # plt.imshow(recon.view(input,input).detach().cpu().numpy(), cmap="gray")
             # plt.xticks([])
@@ -47,42 +52,35 @@ def generate_images(model, test_data, input=28, random_bg=False):
         i += 3
     plt.show()
 
-def plot_loss_histogram(model, in_data, ood_data, input=28, random_bg=False):
-    in_data_loss = []
-    ood_data_loss = []
-    for img in iter(in_data):
-        img = img[0][0] if not random_bg else randomize_background(img[0][0])
-        # img = img[0] # Just for constant images
+def reconstructed_probability(img, model, random_bg=False, L=10):
+    reconstructed_prob = 0
 
-        rec_mu, rec_var = model(img.cuda())
-        std = torch.exp(rec_var / 2)
-        normalized_std = normalize(std)
-        p = torch.distributions.Normal(rec_mu, normalized_std)  
+    if random_bg:
+        img = constant_gray_bg(img)
 
-        img = torch.flatten(img, 1)
-        recon_loss = torch.mean((rec_mu - img.cuda()) ** 2)
-        in_data_loss.append(recon_loss.detach().cpu())
+    mu_z, log_var_z = model.encode(img.cuda())
+
+    img = torch.squeeze(torch.flatten(img, 1))
     
-    for img in iter(ood_data):
-        img = img[0][0] if not random_bg else randomize_background(img[0][0])
-        # img = img[0] # Just for constant images
+    for _ in range(L):
+        _, _, z = model.sample_enc(mu_z, log_var_z)
+        mu_hat, log_var_hat = model.decode(z)
+        # std = var_hat.sqrt() + 1e-5
+        var_hat = torch.exp(log_var_hat)
+        
+        mu_hat = torch.squeeze(mu_hat)
+        var_hat = torch.squeeze(var_hat)
 
-        rec_mu, rec_var = model(img.cuda())
-        std = torch.exp(rec_var / 2)
-        normalized_std = normalize(std)
-        p = torch.distributions.Normal(rec_mu, normalized_std)  
+        # mu_hat = mu_hat.detach().cpu().numpy()
+        # var_hat = var_hat.detach().cpu().numpy()
 
-        img = torch.flatten(img, 1)
-        recon_loss = torch.mean((rec_mu - img.cuda()) ** 2)
-        ood_data_loss.append(recon_loss.detach().cpu())
+        dist = torch.distributions.MultivariateNormal(mu_hat, torch.diag(var_hat))
+        # prob = multivariate_normal.pdf(img, mu_hat, np.diag(var_hat))
+        # reconstructed_prob += prob
+        reconstructed_prob += dist.log_prob(img.cuda())
     
-    plt.figure(figsize=(10,5))
-    plt.hist(np.array(in_data_loss), 100, alpha=0.5, label='In Distribution Data')
-    plt.hist(np.array(ood_data_loss), 150, alpha=0.5, label='OOD Data')
-    plt.legend(loc='upper left')
-    plt.xlabel('mse loss')
-    plt.title('PixelCNN trained on MNIST')
-    plt.show()
+    reconstructed_prob /= L
+    return reconstructed_prob.item()
 
 def normalize(data, min_range=0.0, max_range=1.0):
     min_pixel = torch.min(data)
@@ -95,7 +93,12 @@ def normalize(data, min_range=0.0, max_range=1.0):
 
     return scaled_data
 
-def randomize_background(img, min_range=0.0, max_range=0.7):
+def constant_gray_bg(img):
+    min_pixel_val = torch.min(img)
+    img[img == min_pixel_val] = 0.5
+    return img
+
+def randomize_background(img, min_range=0.0, max_range=0.5):
     min_pixel_val = torch.min(img)
     img[img == min_pixel_val] = (min_range - max_range) * torch.rand(img[img == min_pixel_val].shape, ) + max_range
     return img

@@ -76,6 +76,26 @@ class FashionMNISTBgAug(FashionMNIST):
         return img, img1, img2, target
 
 
+class FashionMNISTBgAugSingleImg(FashionMNIST):
+    def __getitem__(self, index: int):
+
+        img, target = self.data[index], int(self.targets[index])
+
+        img = Image.fromarray(img.numpy(), mode='L')
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        mask = img.clone()
+        img = randomize_background_vae(img)
+
+        return img, mask, target
+
+
+
 class BgAugMNISTDataModule(MNISTDataModule):
     def __init__(self, single_image: bool = False):
         super(BgAugMNISTDataModule, self).__init__()
@@ -125,20 +145,44 @@ class BgAugMNISTDataModule(MNISTDataModule):
 
 
 class BgAugFashionMNISTDataModule(FashionMNISTDataModule):
+    def __init__(self, single_image: bool = False):
+        super(BgAugFashionMNISTDataModule, self).__init__()
+
+        self.single_image = single_image
+
     def prepare_data(self):
+
+        if not self.single_image:
         # download only
-        FashionMNISTBgAug(self.data_dir, train=True, download=True,
-                          transform=self.transform)
-        FashionMNISTBgAug(self.data_dir, train=False, download=True,
-                          transform=transforms.Compose(
-                              [transforms.ToTensor()]))
+            FashionMNISTBgAug(self.data_dir, train=True, download=True,
+            transform=self.transform)
+
+            FashionMNISTBgAug(self.data_dir, train=False, download=True,
+            transform=transforms.Compose([transforms.ToTensor()]))
+        
+        else:
+            FashionMNISTBgAugSingleImg(self.data_dir, train=True, download=True,
+            transform=self.transform)
+
+            FashionMNISTBgAugSingleImg(self.data_dir, train=False, download=True,
+            transform=transforms.Compose(
+                [transforms.ToTensor()]))
 
     def setup(self):
         # transform
-        mnist_train = FashionMNISTBgAug(self.data_dir, train=True,
-                                        download=False, transform=self.transform)
-        mnist_test = FashionMNISTBgAug(self.data_dir, train=False,
-                                       download=False, transform=self.transform)
+        if not self.single_image:
+            mnist_train = FashionMNISTBgAug(self.data_dir, train=True,
+            download=False, transform=self.transform)
+            
+            mnist_test = FashionMNISTBgAug(self.data_dir, train=False,
+            download=False, transform=self.transform)
+        
+        else:
+            mnist_train = FashionMNISTBgAugSingleImg(self.data_dir, train=True,
+            download=False, transform=self.transform)
+
+            mnist_test = FashionMNISTBgAugSingleImg(self.data_dir, train=False,
+            download=False, transform=self.transform)
 
         # train/val split
         mnist_train, mnist_val = random_split(mnist_train, [55000, 5000])
