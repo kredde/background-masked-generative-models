@@ -56,6 +56,7 @@ class COCOPixelCNN(PixelCNN):
                  kernel_size: int = 7, padding: int = 3, in_channels: int = 1, concat_dataset: bool = True, bg_aug: bool = False,
                  random_bg: bool = False, target_random: bool = False, single_loss: bool = False, residual_connection: bool = False,
                  mse_loss: bool = False, target_background: bool = False, target_fg: bool = False, random_normal_bg_target: bool = False, reg: float = 0.0,
+                 svhn: bool = False,
                  *args, **kwargs):
 
         super(COCOPixelCNN, self).__init__(*args, **kwargs)
@@ -75,7 +76,7 @@ class COCOPixelCNN(PixelCNN):
         self.target_fg = target_fg
         self.random_normal_bg_target = random_normal_bg_target
         self.reg = reg
-        self.svhn = False
+        self.svhn = svhn
 
         # set up residual connection blocks
         if residual_connection:
@@ -222,7 +223,6 @@ class COCOPixelCNN(PixelCNN):
             background_batch = val_batch
         if self.svhn:
             x, _ = val_batch
-            x = x.unsqueeze(0)
         else:
             x, _ = background_batch
 
@@ -233,10 +233,10 @@ class COCOPixelCNN(PixelCNN):
             target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
-        if self.background_subtraction:
-            mask = foreground_batch[0]
-            logits = self.subtract_background_likelihood(
-                logits, mask.cuda())
+#         if self.background_subtraction:
+#             mask = foreground_batch[0]
+#             logits = self.subtract_background_likelihood(
+#                 logits, mask.cuda())
 
         loss = self.cross_entropy_loss(logits, target)
 
