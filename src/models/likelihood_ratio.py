@@ -11,6 +11,10 @@ import torch
 
 
 class LikelihoodRatio(LightningModule):
+    """
+        Evaluates a model and a background model using likelihood ratios
+    """
+
     def __init__(self, model=None, model_back=None, back_weight=1, img_index=False, *args, **kwargs):
         super(LikelihoodRatio, self).__init__(*args, **kwargs)
 
@@ -22,9 +26,11 @@ class LikelihoodRatio(LightningModule):
     def forward(self, x):
         full = self.model(x)
         back = self.model_back(x)
+
+        # compute ratio of log likelihoods
         return full - (self.back_weight * back)
 
-    def _step(self, batch, batch_idx):
+    def _step(self, batch, _):
         x, y = batch
 
         if self.img_index:

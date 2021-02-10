@@ -9,6 +9,10 @@ from src.data.transforms.mutate import Mutate
 
 
 class ConcatDataset(Dataset):
+    """
+        Dataset module of the COCO dataset.
+    """
+
     def __init__(self, background, foreground, rand_bg: bool = False, rand_normal_bg: bool = False, bg_aug_max: float = 0.5):
         self.bg = background
         self.fg = foreground
@@ -17,6 +21,10 @@ class ConcatDataset(Dataset):
         self.bg_aug_max = bg_aug_max
 
     def __getitem__(self, i):
+        """
+            Returns the background and foreground image. With optional the
+            background augmentations.
+        """
         bg = self.bg[i]
         fg_img, fg_targ = self.fg[i]
 
@@ -35,6 +43,9 @@ class ConcatDataset(Dataset):
 
 
 class COCODataModule(LightningDataModule):
+    """
+        The COCO data module
+    """
 
     def __init__(self, batch_size: int = 64, foreground_data_dir: str = "./data/COCO/foreground_images/", background_data_dir: str = "./data/COCO/background_images/", seed: int = 42, num_workers: int = 8,
                  normalize: bool = False, convert_grayscale: bool = False, split_ratio: float = 0.8, resize_dim=(32, 32), resize: bool = True, background_only: bool = False, rand_bg: bool = False, rand_normal_bg: bool = False, bg_aug_max: float = 0.5,  mutate: float = 0.0):

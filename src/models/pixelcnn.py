@@ -7,7 +7,6 @@ from torch.nn import functional as F
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.autograd import Variable
-from src.utils.pixelcnn import positionalencoding2d
 import torch
 
 
@@ -28,16 +27,14 @@ class MaskedConv2d(nn.Conv2d):
 
 class PixelCNN(LightningModule):
 
-    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0, foreground_addition_value: float = 0.0, kernel_size: int = 7, padding: int = 3, in_channels: int = 1, position_encode: bool = False, mse: bool = False, fg_mse: bool = False, reg: float = 0.0, *args, **kwargs):
+    def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0,
+                 kernel_size: int = 7, padding: int = 3, in_channels: int = 1, reg: float = 0.0,
+                 *args, **kwargs):
         super(PixelCNN, self).__init__(*args, **kwargs)
         self.learning_rate = learning_rate
         self.background_subtraction = background_subtraction
         self.background_subtraction_value = background_subtraction_value
-        self.foreground_addition_value = foreground_addition_value
-        self.position_encode = position_encode
         self.in_channels = in_channels
-        self.mse = mse
-        self.fg_mse = fg_mse
         self.kernel_size = kernel_size
         self.padding = padding
         self.reg = reg
@@ -64,23 +61,19 @@ class PixelCNN(LightningModule):
     def forward(self, x):
         return self.blocks(x)
 
-    def _step(self, batch, batch_idx):
+    def _step(self, batch, _):
         x, y = batch
 
         input = Variable(x.cuda())
-        if self.position_encode:
-            input = self.positional_encoding(input)
+
         target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
-        if self.background_subtraction:  # Set all likelihood values of background pixels to zero
+        # self.foreground_addition_value
+        if self.background_subtraction:
             logits, target = self.subtract_background_likelihood(
                 logits, target)
         loss = self.cross_entropy_loss(logits, target)
-
-        if self.mse:
-            mse = self.compute_mse(logits, target, masked=self.fg_mse)
-            loss += mse
 
         return loss
 
@@ -122,28 +115,9 @@ class PixelCNN(LightningModule):
 
         mask = torch.reshape(torch.clone(target), tuple(logit_shape))
         mask = mask.type(torch.FloatTensor)
-        mask[mask > 0] = 1 + self.foreground_addition_value
+        mask[mask > 0] = 1
         mask[mask == 0] = self.background_subtraction_value
-        mask = mask.repeat(1, 256, 1, 1)  # this should not be static
+        mask = mask.repeat(1, 256, 1, 1)
 
         l = l * mask.cuda()
         return l, target
-
-    def compute_mse(self, logits, target, masked=False):
-        values = logits.max(1).indices
-        if masked:
-            mask = target.clone()
-            mask[mask > 0] = 1
-            values = values * mask
-
-        values = values.type(torch.FloatTensor) / 255
-        target = target.type(torch.FloatTensor) / 255
-
-        return F.mse_loss(values, target)
-
-    def positional_encoding(self, batch):
-        pe = positionalencoding2d(4, *batch.shape[2:4])
-        pe = pe.repeat(batch.shape[0], 1, 1, 1)
-        encoded = torch.cat((batch, pe[:, 0].view(batch.shape), pe[:, 1].view(batch.shape), pe[:, 2].view(
-            batch.shape), pe[:, 3].view(batch.shape))).view(batch.shape[0], 5, *batch.shape[2:4])
-        return encoded
