@@ -1,61 +1,27 @@
 """
 COCOPixelCNN
 """
-from src.models.pixelcnn import PixelCNN
 from torch import nn
 from torch.autograd import Variable
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.nn import functional as F
 import torch
-from src.utils.pixelcnn import randomize_background, randomize_background_normal
 
-
-class MaskedConv2d(nn.Conv2d):
-    def __init__(self, mask_type, *args, **kwargs):
-        super(MaskedConv2d, self).__init__(*args, **kwargs)
-        assert mask_type in {'A', 'B'}
-        self.register_buffer('mask', self.weight.data.clone())
-        _, _, kH, kW = self.weight.size()
-        self.mask.fill_(1)
-        self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
-        self.mask[:, :, kH // 2 + 1:] = 0
-
-    def forward(self, x):
-        self.weight.data *= self.mask
-        return super(MaskedConv2d, self).forward(x)
-
-
-def maskAConv(c_in=1, c_out=128, k_size=7, stride=1, pad=3):
-    """2D Masked Convolution (type A)"""
-    return nn.Sequential(
-        MaskedConv2d('A', c_in, c_out, k_size, stride, pad, bias=False),
-        nn.BatchNorm2d(c_out),
-        nn.ReLU(True))
-
-
-class MaskBConvBlock(nn.Module):
-    def __init__(self, h=128, k_size=7, stride=1, pad=3, residual_connection=False):
-        """1x1 Conv + 2D Masked Convolution (type B) + 1x1 Conv"""
-        super(MaskBConvBlock, self).__init__()
-
-        self.residual_connection = residual_connection
-        self.net = nn.Sequential(
-            MaskedConv2d('B', h, h, k_size, stride, pad, bias=False),
-            nn.BatchNorm2d(h),
-            nn.ReLU(True)
-        )
-
-    def forward(self, x):
-        # Try residual connection
-        return self.net(x) + x if self.residual_connection else self.net(x)
+from src.models.pixelcnn import PixelCNN
+from src.utils.pixelcnn import randomize_background_normal
+from src.models.blocks.masked_convolution import maskAConv, MaskBConvBlock, MaskedConv2d
 
 
 class COCOPixelCNN(PixelCNN):
+    """
+        PixelCNN architecture used to train on COCO dataset
+    """
+
     def __init__(self, learning_rate: int = 1e-3, background_subtraction: bool = False, background_subtraction_value: float = 0.0,
                  kernel_size: int = 7, padding: int = 3, in_channels: int = 1, concat_dataset: bool = True, bg_aug: bool = False,
                  random_bg: bool = False, target_random: bool = False, single_loss: bool = False, residual_connection: bool = False,
-                 mse_loss: bool = False, target_background: bool = False, target_fg: bool = False, random_normal_bg_target: bool = False, reg: float = 0.0,
+                 mse_loss: bool = False,  target_fg: bool = False, random_normal_bg_target: bool = False, reg: float = 0.0,
                  svhn: bool = False,
                  *args, **kwargs):
 
@@ -131,13 +97,14 @@ class COCOPixelCNN(PixelCNN):
     def cross_entropy_loss(self, logits, targets):
         return F.cross_entropy(logits, targets)
 
-    def _step(self, batch, batch_idx):
+    def _step(self, batch, _):
         if self.concat_dataset:
             background_batch, foreground_batch = batch
             x_foreground = foreground_batch[0]
         else:
             background_batch = batch
         x = background_batch[0]
+
         if self.bg_aug:
             if self.random_bg:
                 x_foreground, x_foreground_randbg, _ = foreground_batch
@@ -216,9 +183,9 @@ class COCOPixelCNN(PixelCNN):
         self.log('val_loss', loss)
         return loss
 
-    def test_step(self, val_batch, batch_idx):
+    def test_step(self, val_batch, _):
         if self.concat_dataset:
-            background_batch, foreground_batch = val_batch
+            background_batch, x_foreground = val_batch
         else:
             background_batch = val_batch
         if self.svhn:
@@ -233,11 +200,6 @@ class COCOPixelCNN(PixelCNN):
             target = Variable((x.data[:, 0] * 255).long())
         logits = self.forward(input)
 
-#         if self.background_subtraction:
-#             mask = foreground_batch[0]
-#             logits = self.subtract_background_likelihood(
-#                 logits, mask.cuda())
-
         loss = self.cross_entropy_loss(logits, target)
 
         self.log('test_loss', loss)
@@ -247,7 +209,7 @@ class COCOPixelCNN(PixelCNN):
         l = logits.clone()
 
         mask = target_mask.clone()
-        mask[mask > 0.0] = 1.0 + self.foreground_addition_value
+        mask[mask > 0.0] = 1.0
         mask[mask == 0.0] = self.background_subtraction_value
         mask = mask.repeat(1, 256, 1, 1)
 

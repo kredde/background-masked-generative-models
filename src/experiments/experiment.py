@@ -7,8 +7,10 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 class Experiment():
     def __init__(self, experiment_name, model=None, dataset=None, callbacks=[], model_params={}, dataset_params={},
-                 max_epochs=500, background_subtraction=False):
+                 max_epochs=500, background_subtraction=False, device="cuda:0"):
         """
+            Class to execute, save, reload and tracke experiments
+
             usage:
                 # setup a new experiment
                 exp = Experiment('PixelCNN_MNIST_1', model=PixelCNN,
@@ -29,12 +31,13 @@ class Experiment():
         self.max_epochs = max_epochs
         self.callbacks = callbacks
         self.background_subtraction = background_subtraction
+        self.device = device
 
     def _setup(self):
         """
             sets up the model and dataset with the given params
         """
-        self.model = self.model_class(**self.model_params).cuda()
+        self.model = self.model_class(**self.model_params).to(self.device)
         self.dataset = self.dataset_class(**self.dataset_params)
         self.dataset.prepare_data()
         self.dataset.setup()
@@ -101,4 +104,4 @@ class Experiment():
             model_path = str('models/' + self.experiment_name + '.ckpt')
 
         self.model = self.model.load_from_checkpoint(
-            checkpoint_path=model_path, **self.model_params).cuda()
+            checkpoint_path=model_path, **self.model_params).to(self.device)

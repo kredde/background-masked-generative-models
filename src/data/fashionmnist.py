@@ -1,15 +1,18 @@
-import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import FashionMNIST
-import numpy as np
+from PIL import Image
 
 from src.data.transforms.mutate import Mutate
 
 
 class FashionMNISTDataModule(LightningDataModule):
-    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, perturb: bool = False, resize: bool = False, resize_dim: tuple = (32, 32), normalize: bool = False, mutate: float = 0.0):
+    """
+        FashionMNIST data module
+    """
+
+    def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16,  resize: bool = False, resize_dim: tuple = (32, 32), normalize: bool = False, mutate: float = 0.0):
         super().__init__()
 
         self.batch_size = batch_size

@@ -12,3 +12,4 @@ sacred
 autopep8
 pycocotools
 scipy
+seaborn

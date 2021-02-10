@@ -1,4 +1,3 @@
-import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
@@ -8,6 +7,10 @@ from PIL import Image
 
 
 class MNISTDataModule(LightningDataModule):
+    """
+        MNIST data module
+    """
+
     def __init__(self, batch_size: int = 64, data_dir: str = "./data", seed: int = 42, num_workers: int = 16, resize: bool = False, resize_dim: tuple = (32, 32), normalize: bool = False):
         super().__init__()
 

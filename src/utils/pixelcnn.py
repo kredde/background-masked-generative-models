@@ -1,3 +1,6 @@
+"""
+    Utility functions for pixelcnn
+"""
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
@@ -9,6 +12,9 @@ import torch
 
 
 def generate_images(model, channels=1, img_dim=(28, 28)):
+    """
+        Generate pixelcnn images
+    """
     sample = torch.Tensor(64, channels, *img_dim).cuda()
 
     model.cuda()
@@ -34,12 +40,18 @@ def generate_images(model, channels=1, img_dim=(28, 28)):
 
 
 def randomize_background(img, norm=0.5):
+    """
+        Replace black pixels with a constant random number
+    """
     img = img.clone()
     img[img == 0] = np.random.random_sample() * norm
     return img
 
 
 def randomize_background_normal(foreground, mean=0.4420, std=0.2413):
+    """
+        Replace black pixels with a random normal distribution
+    """
     bg = torch.empty((foreground.shape)).normal_(mean=mean, std=std).cuda()
     bg[bg < 0] = 0.0
     bg[bg > 1] = 1.0
@@ -57,18 +69,22 @@ def randomize_background_normal(foreground, mean=0.4420, std=0.2413):
 
 
 def likelihood(img_data, model):
+    """
+        Compute the likelihood of the actual pixels of an image
+    """
+
     img = img_data[0].cuda()
-    if hasattr(model, 'position_encode') and model.position_encode:
-        img = model.positional_encoding(img)
-    img = img.cuda()
+
     model.eval()
+    # run the image through the model
     res = model(img)
     b, c, w, h = res.shape
     like = torch.zeros((w, h))
+
+    # get the likelihood of the ground truth pixels
     for i in range(w):
         for j in range(h):
-            probs = F.softmax(res[0, :, i, j], dim=0)
-#             probs = res[0, :, i, j]
+            probs = res[0, :, i, j]
 
             prob = (img[0, :, i, j] * 255.).int().cpu().numpy()[0]
             like[i][j] = probs[prob]
@@ -77,6 +93,10 @@ def likelihood(img_data, model):
 
 
 def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=(4, 4)):
+    """
+        Plot the likelihood heatmap for a given number of images
+    """
+
     columns, rows = dim
     fig = plt.figure(figsize=(16, 16))
     i = 1
@@ -100,6 +120,9 @@ def draw_likelihood_plot(data, model, cmap="gray", vmax=.1, img_index=None, dim=
 
 
 def draw_likelihood_plot_ratio(data, model_full, model_back, cmap="gray", vmax=.1, img_index=None, dim=(4, 4)):
+    """
+        Plot the likelihood heatmap for a likelihood ratio model
+    """
     columns, rows = dim
     fig = plt.figure(figsize=(16, 16))
     i = 1
@@ -124,6 +147,9 @@ def draw_likelihood_plot_ratio(data, model_full, model_back, cmap="gray", vmax=.
 
 
 def likelihood_ratio(img_data, model_full, model_back):
+    """
+        Compute the likelihood of the actual pixels of an image using likelihood ratios
+    """
     img = img_data[0].cuda()
 
     img = img.cuda()
@@ -150,14 +176,19 @@ def likelihood_ratio(img_data, model_full, model_back):
 
 def positionalencoding2d(d_model, height, width):
     """
-    :param d_model: dimension of the model
-    :param height: height of the positions
-    :param width: width of the positions
-    :return: d_model*height*width position matrix
+    Args:
+        d_model: dimension of the model
+        height: height of the positions
+        width: width of the positions
+
+    return:
+        d_model*height*width position matrix
     """
+
     if d_model % 4 != 0:
         raise ValueError("Cannot use sin/cos positional encoding with "
                          "odd dimension (got dim={:d})".format(d_model))
+
     pe = torch.zeros(d_model, height, width)
     # Each dimension use half of d_model
     d_model = int(d_model / 2)
