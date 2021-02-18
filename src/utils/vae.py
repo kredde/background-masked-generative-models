@@ -1,3 +1,6 @@
+"""
+    Utility functions for VAE
+"""
 from sklearn.manifold import TSNE
 import seaborn as sns
 import torch
@@ -8,6 +11,9 @@ import math
 from scipy.stats import multivariate_normal, norm
 
 def generate_images(model, test_data, input=28, random_bg=False, bg_pixel_val=0.5):
+    """
+        Reconstruct mean and variance using VAE-Variance
+    """
     columns = 3
     rows = 1
     fig = plt.figure(figsize=(10, 15))
@@ -44,31 +50,10 @@ def generate_images(model, test_data, input=28, random_bg=False, bg_pixel_val=0.
         i += 3
     plt.show()
 
-def reconstructed_probability(img, model, random_bg=False, L=10):
-    reconstructed_prob = 0
-
-    if random_bg:
-        img = constant_gray_bg(img)
-
-    mu_z, log_var_z = model.encode(img.cuda())
-
-    img = torch.squeeze(torch.flatten(img, 1))
-    
-    for _ in range(L):
-        _, _, z = model.sample_enc(mu_z, log_var_z)
-        mu_hat, log_var_hat = model.decode(z)
-        var_hat = torch.exp(log_var_hat)
-        
-        mu_hat = torch.squeeze(mu_hat)
-        var_hat = torch.squeeze(var_hat)
-
-        dist = torch.distributions.MultivariateNormal(mu_hat, torch.diag(var_hat))
-        reconstructed_prob += dist.log_prob(img.cuda())
-    
-    reconstructed_prob /= L
-    return reconstructed_prob.item()
-
 def normalize(data, min_range=0.0, max_range=1.0):
+    """
+        Basic normalization function for input images
+    """
     min_pixel = torch.min(data)
     max_pixel = torch.max(data)
 
@@ -80,11 +65,17 @@ def normalize(data, min_range=0.0, max_range=1.0):
     return scaled_data
 
 def constant_gray_bg(img, bg_pixel_val=0.5):
+    """
+        Convert background pixels to gray
+    """
     min_pixel_val = torch.min(img)
     img[img == min_pixel_val] = bg_pixel_val
     return img
 
-def randomize_background(img, min_range=0.0, max_range=0.8):
+def randomize_background(img, min_range=0.0, max_range=0.7):
+    """
+        Change every background pixel value uniformly
+    """
     min_pixel_val = torch.min(img)
     img[img == min_pixel_val] = (min_range - max_range) * torch.rand(img[img == min_pixel_val].shape, ) + max_range
     return img

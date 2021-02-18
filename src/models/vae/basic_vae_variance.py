@@ -8,6 +8,9 @@ import torch.nn.functional as F
 
 
 class BasicVAEVariance(LightningModule):
+    """
+        VAE architecture used to learn variance along with the mean
+    """
     def __init__(self, lr: float = 1e-3, kl_coeff: float = 0.1, use_custom_loss: bool = True, bg_aug_train: bool = False):
         super(BasicVAEVariance, self).__init__()
 
@@ -25,6 +28,7 @@ class BasicVAEVariance(LightningModule):
         self.fc_log_var_x = nn.Sequential(nn.Linear(400, 784))
 
         self.relu = nn.ReLU(inplace=True)
+
 
     def forward(self, x):
         
