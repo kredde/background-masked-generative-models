@@ -1,5 +1,6 @@
 import pickle
 from pathlib import Path
+import torch
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -7,7 +8,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 class Experiment():
     def __init__(self, experiment_name, model=None, dataset=None, callbacks=[], model_params={}, dataset_params={},
-                 max_epochs=500, background_subtraction=False, device="cuda:0"):
+                 max_epochs=500, background_subtraction=False, device="cuda:0", gpus=1):
         """
             Class to execute, save, reload and tracke experiments
 
@@ -32,6 +33,7 @@ class Experiment():
         self.callbacks = callbacks
         self.background_subtraction = background_subtraction
         self.device = device
+        self.gpus = None if not torch.cuda.is_available() else gpus
 
     def _setup(self):
         """
@@ -42,18 +44,18 @@ class Experiment():
         self.dataset.prepare_data()
         self.dataset.setup()
         self.trainer = Trainer(max_epochs=self.max_epochs,
-                               gpus=1, callbacks=self.callbacks, auto_lr_find=True)
+                               gpus=self.gpus, callbacks=self.callbacks, auto_lr_find=True)
 
     def setup_new(self):
         """
             sets up a new experiment
         """
         self._setup()
-
+        
         self.logger = TensorBoardLogger(
             'lightning_logs', name=self.experiment_name)
 
-        self.trainer = Trainer(max_epochs=self.max_epochs, gpus=1,
+        self.trainer = Trainer(max_epochs=self.max_epochs, gpus=self.gpus,
                                logger=self.logger, callbacks=self.callbacks, auto_lr_find=True)
 
     def train(self):

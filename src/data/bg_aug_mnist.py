@@ -135,7 +135,6 @@ class FashionMNISTBgAugSingleImg(FashionMNIST):
 
         mask = img.clone()
         img = randomize_background_vae(img)
-
         return img, mask, target
 
 
