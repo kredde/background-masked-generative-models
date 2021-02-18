@@ -7,29 +7,21 @@ from numbers import Number
 import math
 from scipy.stats import multivariate_normal, norm
 
-def generate_images(model, test_data, input=28, random_bg=False):
+def generate_images(model, test_data, input=28, random_bg=False, bg_pixel_val=0.5):
     columns = 3
-    rows = 3
+    rows = 1
     fig = plt.figure(figsize=(10, 15))
     i = 1
     for img in iter(test_data):
         if i <= (columns * rows) * 3:
            
-            img = img[0][0] if not random_bg else constant_gray_bg(img[0][0])
-            # img = img[0] # Just for constant images
+            img = img[0][0] if not random_bg else constant_gray_bg(img[0][0], bg_pixel_val)
             mask = torch.flatten(img.clone(), 1)
             
             rec_mu, rec_var = model(img.cuda())
 
             std = rec_var.sqrt()
             p = torch.distributions.Normal(rec_mu, std)
-            recon = p.sample()
-
-            # fig.add_subplot(rows * 4, columns * 4, i)
-            # plt.imshow(recon.view(input,input).detach().cpu().numpy(), cmap="gray")
-            # plt.xticks([])
-            # plt.yticks([])
-            # plt.title("recon")
            
             fig.add_subplot(rows * 3, columns * 3, i)
             plt.imshow(rec_mu.view(input,input).detach().cpu().numpy(), cmap="gray")
@@ -65,18 +57,12 @@ def reconstructed_probability(img, model, random_bg=False, L=10):
     for _ in range(L):
         _, _, z = model.sample_enc(mu_z, log_var_z)
         mu_hat, log_var_hat = model.decode(z)
-        # std = var_hat.sqrt() + 1e-5
         var_hat = torch.exp(log_var_hat)
         
         mu_hat = torch.squeeze(mu_hat)
         var_hat = torch.squeeze(var_hat)
 
-        # mu_hat = mu_hat.detach().cpu().numpy()
-        # var_hat = var_hat.detach().cpu().numpy()
-
         dist = torch.distributions.MultivariateNormal(mu_hat, torch.diag(var_hat))
-        # prob = multivariate_normal.pdf(img, mu_hat, np.diag(var_hat))
-        # reconstructed_prob += prob
         reconstructed_prob += dist.log_prob(img.cuda())
     
     reconstructed_prob /= L
@@ -93,12 +79,12 @@ def normalize(data, min_range=0.0, max_range=1.0):
 
     return scaled_data
 
-def constant_gray_bg(img):
+def constant_gray_bg(img, bg_pixel_val=0.5):
     min_pixel_val = torch.min(img)
-    img[img == min_pixel_val] = 0.5
+    img[img == min_pixel_val] = bg_pixel_val
     return img
 
-def randomize_background(img, min_range=0.0, max_range=0.5):
+def randomize_background(img, min_range=0.0, max_range=0.8):
     min_pixel_val = torch.min(img)
     img[img == min_pixel_val] = (min_range - max_range) * torch.rand(img[img == min_pixel_val].shape, ) + max_range
     return img
